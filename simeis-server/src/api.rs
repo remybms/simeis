@@ -100,10 +100,40 @@ async fn ping() -> impl web::Responder {
     build_response(Ok(json!({"ping": "pong"})))
 }
 
+#[web::get("/syslogs")]
+async fn get_syslogs(srv: GameState, req: HttpRequest) -> impl web::Responder {
+    let player = get_player!(srv, req);
+    let player = player.read().unwrap();
+    let allfifo = srv.fifo_events.read().unwrap();
+    let Some(fifo) = allfifo.get(&player.id) else {
+        return build_response(Ok(json!({"nb": 0, "events": []})));
+    };
+    let mut fifo = fifo.write().unwrap();
+    let all_ev = fifo.remove_all();
+    let res = all_ev
+        .into_iter()
+        .map(|(t, ev)| {
+            let s: &'static str = ev.into();
+            json!({
+                "timestamp": srv.tstart + t,
+                "type": s,
+                "event": ev,
+            })
+        })
+        .collect::<Vec<serde_json::Value>>();
+
+    log::debug!("GOT LOGS {res:?}");
+    build_response(Ok(json!({ "nb": res.len(), "events": res, })))
+}
+
 #[web::get("/player/new/{name}")]
 async fn new_player(srv: GameState, name: Path<String>) -> impl web::Responder {
-    let name = name.as_ref();
-    build_response(crate::player::new_player(srv, name.clone()))
+    build_response(srv.new_player(&name).map(|(id, key)| {
+        serde_json::json!({
+            "playerId": id,
+            "key": key,
+        })
+    }))
 }
 
 #[web::get("/player/{id}")]
@@ -111,8 +141,6 @@ async fn get_player(srv: GameState, id: Path<PlayerId>, req: HttpRequest) -> imp
     let Some(key) = get_player_key(&req) else {
         return build_response(Err(Errcode::NoPlayerKey));
     };
-
-    let id = id.as_ref();
     build_response(crate::player::get_player(srv, *id, key))
 }
 
@@ -733,6 +761,7 @@ async fn get_fee_rate(
 
 pub fn configure(srv: &mut ServiceConfig) {
     srv.service(ping)
+        .service(get_syslogs)
         .service(hire_crew)
         .service(get_crew_upgrades)
         .service(buy_crew_upgrade)

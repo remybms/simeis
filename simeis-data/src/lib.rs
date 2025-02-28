@@ -7,3 +7,4 @@ pub mod game;
 pub mod market;
 pub mod player;
 pub mod ship;
+pub mod syslog;

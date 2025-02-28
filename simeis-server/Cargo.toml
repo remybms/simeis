@@ -5,10 +5,10 @@ edition = "2021"
 
 [dependencies]
 simeis-data = { path = "../simeis-data" }
-base64 = "0.22.1"
 urlencoding = "2.1.3"
 ntex = { version = "2.11.0", features = ["compress", "tokio"] }
 
+base64 = { workspace = true }
 log = { workspace = true }
 env_logger = { workspace = true }
 rand = { workspace = true }

@@ -57,7 +57,7 @@ class Tester:
     def disp_ok(self):
         print("  * Test", self.current_test, " "*(self.indent - len(self.current_test)), "OK")
 
-    def request(self, endpoint, expcode=200, **kwargs):
+    def request(self, endpoint, expcode=200, timeout=1, **kwargs):
         self.addtrace(endpoint, "expected code", expcode)
         if "key" not in kwargs:
             if self.key is not None:
@@ -73,7 +73,12 @@ class Tester:
 
         try:
             headers["Content-Type"] = "application/x-www-form-urlencoded"
-            got = requests.get(url, headers=headers)
+            got = requests.get(url, headers=headers, timeout=timeout)
+        except requests.exceptions.Timeout:
+            print(f"GET {endpoint}:")
+            print("\tRequest timed out, deadlock suspected in the server")
+            print("")
+            sys.exit(1)
         except requests.exceptions.ConnectionError:
             print("")
             print("Server panicked")
@@ -195,6 +200,18 @@ class Tester:
         self.assert_got(pl2, "money", self.assert_got(pl1, "money", None))
 
     @functest
+    def test_syslog(self):
+        ts = time.time()
+        self.create_test_player()
+        time.sleep(0.3)
+        got = self.assert_ok("/syslogs")
+        nb = self.assert_got(got, "nb", 1)
+        ev = self.assert_got(got, "events", None)[0]
+        self.assert_got(ev, "type", "GameStarted")
+        self.assert_got(ev, "event", "GameStarted")
+        assert ts < self.assert_got(ev, "timestamp", None)
+
+    @functest
     def test_shipyard(self):
         self.create_test_player()
 
@@ -258,9 +275,10 @@ class Tester:
         self.create_test_player()
         self.assert_ok(f"/station/{self.station}/crew/hire/pilot")
         before = self.assert_ok(f"/player/{self.id}")
+        costs = self.assert_got(before, "costs", None)
         time.sleep(0.3)
         after = self.assert_ok(f"/player/{self.id}")
-        assert before["money"] > after["money"]
+        self.assert_got(after, "money", before["money"] - (costs * 0.3))
 
     @functest
     def test_assign_crew(self):
@@ -388,6 +406,12 @@ class Tester:
             self.assert_got(back, "hull_decay", None),
             self.assert_got(after, "hull_decay", None) + cost["hull_usage"],
         )
+
+        got = self.assert_ok("/syslogs")
+        self.assert_got(got, "nb", 3)
+        ev = self.assert_got(got, "events", None)[1]
+        ty = self.assert_got(ev, "type", "ShipFlightFinished")
+        self.assert_got(ev["event"], ty, ship_id)
 
     @functest
     def test_scan(self):

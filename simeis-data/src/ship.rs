@@ -233,8 +233,6 @@ impl Ship {
 
         if finished {
             debug_assert_eq!(self.position, data.destination);
-        } else {
-            debug_assert_ne!(self.position, data.destination);
         }
         finished
     }

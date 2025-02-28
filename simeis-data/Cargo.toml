@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 rand_distr = "0.5.1"
 
+base64 = { workspace = true }
 log = { workspace = true }
 env_logger = { workspace = true }
 rand = { workspace = true }
