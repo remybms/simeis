@@ -574,7 +574,7 @@ class Tester:
         cargo = self.assert_ok(f"/station/{self.station}")["cargo"]
         res = self.assert_got(cargo, "resources", None)
         self.assert_got(res, "Stone", 50)
-        self.assert_got(cargo, "usage", 25)
+        self.assert_got(cargo, "usage", 42.5)
 
         cargobefore = self.assert_ok(f"/station/{stationid}")["cargo"]
         tx = self.assert_ok(f"/market/{self.station}/buy/stone/5000")
@@ -607,6 +607,8 @@ class Tester:
         assert after["reactor_power"] > before["reactor_power"]
         assert after["hull_decay_capacity"] > before["hull_decay_capacity"]
 
+    # TODO    Fixup repair on dogfooding
+    #    When 265 of decay, buy 290 plates, then repair, then have 72 decay afterward
     @functest
     def test_repair_refuel(self):
         player = self.create_test_player("test-rich-refuel-repair")
@@ -649,6 +651,10 @@ class Tester:
         self.assert_ok(f"/market/{self.station}/buy/hullplate/{need[1] * 2}")
         got = self.assert_ok(f"/station/{self.station}/repair/{shipid}")
         self.assert_got(got, "added-hull", need[1])
+
+        ship = self.assert_ok(f"/ship/{shipid}")
+        self.assert_got(ship, "hull_decay", 0)
+        self.assert_got(ship, "fuel_tank", self.assert_got(ship, "fuel_tank_capacity", None))
 
     @functest
     def test_upgrade_modules(self):

@@ -15,6 +15,7 @@ use simeis_data::ship::module::{ShipModuleId, ShipModuleType};
 use simeis_data::ship::resources::Resource;
 use simeis_data::ship::upgrade::ShipUpgrade;
 use simeis_data::ship::ShipId;
+use simeis_data::syslog::SyslogEvent;
 use strum::IntoEnumIterator;
 
 pub type ApiResult = Result<serde_json::Value, Errcode>;
@@ -113,7 +114,7 @@ async fn get_syslogs(srv: GameState, req: HttpRequest) -> impl web::Responder {
     let res = all_ev
         .into_iter()
         .map(|(t, ev)| {
-            let s: &'static str = ev.into();
+            let s: &'static str = ev.clone().into();
             json!({
                 "timestamp": srv.tstart + t,
                 "type": s,
@@ -121,8 +122,6 @@ async fn get_syslogs(srv: GameState, req: HttpRequest) -> impl web::Responder {
             })
         })
         .collect::<Vec<serde_json::Value>>();
-
-    log::debug!("GOT LOGS {res:?}");
     build_response(Ok(json!({ "nb": res.len(), "events": res, })))
 }
 
@@ -683,11 +682,19 @@ async fn unload_ship_cargo(
 
     let station = srv.galaxy.get_station(station.1).unwrap();
     let mut station = station.write().unwrap();
+    let pid = player.id;
     let ship = player.ships.get_mut(id).unwrap();
-    build_response(
-        ship.unload_cargo(&resource, *amnt, station.deref_mut())
-            .map(|v| serde_json::json!({ "unloaded": v })),
-    )
+    let res = ship.unload_cargo(&resource, *amnt, station.deref_mut());
+    if let Ok(0.0) = res {
+        srv.syslog.event(
+            &pid,
+            SyslogEvent::UnloadedNothing {
+                station_cargo: station.cargo.clone(),
+                ship_cargo: ship.cargo.clone(),
+            },
+        );
+    }
+    build_response(res.map(|v| serde_json::json!({ "unloaded": v })))
 }
 
 #[web::get("/market/prices")]

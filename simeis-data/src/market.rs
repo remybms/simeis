@@ -10,6 +10,7 @@ const MAX_AVG_AMPL: f64 = 5.0 / 100.0;
 pub const MARKET_CHANGE_SEC: f64 = 20.0;
 const BASE_FEE_RATE: f64 = 20.0 / 100.0;
 const FEE_RATE_DEC_POWF: f64 = 1.3;
+const UPD_PRICE_PROBA: f64 = 0.65;
 
 // Buying 10000 worth of a resource can increase the price between 15% and 20%
 const PRICE_INC_DIV: f64 = 10000.0;
@@ -51,11 +52,14 @@ impl Market {
     }
 
     pub fn update_prices<R: Rng>(&mut self, rng: &mut R) {
-        let new_prices = self
-            .prices
-            .iter()
-            .map(|(r, p)| (*r, self.get_new_price(rng, r, *p)))
-            .collect::<Vec<(Resource, f64)>>();
+        let mut new_prices = vec![];
+        for (res, price) in self.prices.iter() {
+            if !rng.random_bool(UPD_PRICE_PROBA) {
+                continue;
+            }
+
+            new_prices.push((*res, self.get_new_price(rng, res, *price)));
+        }
 
         for (r, price) in new_prices {
             let p = self.prices.get_mut(&r).unwrap();

@@ -284,10 +284,7 @@ impl Ship {
         }
 
         let added = station.cargo.add_resource(resource, unloaded);
-        if added == 0.0 {
-            self.cargo.add_resource(resource, unloaded);
-            Err(Errcode::CargoFull)
-        } else if added < unloaded {
+        if added < unloaded {
             self.cargo.add_resource(resource, unloaded - added);
             Ok(added)
         } else {

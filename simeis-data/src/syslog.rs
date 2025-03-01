@@ -11,7 +11,7 @@ use crate::player::PlayerId;
 const SYSLOG_FIFO_MAX_SIZE: usize = 10;
 
 type SyslogData = (PlayerId, f64, SyslogEvent);
-pub struct Fifo<T: Copy> {
+pub struct Fifo<T> {
     list: [Option<T>; SYSLOG_FIFO_MAX_SIZE],
     push_ind: usize,
     pop_ind: usize,
@@ -24,13 +24,13 @@ impl<T: Copy> Default for Fifo<T> {
     }
 }
 
-impl<T: Copy> Fifo<T> {
+impl<T> Fifo<T> {
     pub fn new() -> Fifo<T> {
         Fifo {
             len: 0,
             push_ind: 0,
             pop_ind: 0,
-            list: [None; SYSLOG_FIFO_MAX_SIZE],
+            list: [const { None }; SYSLOG_FIFO_MAX_SIZE],
         }
     }
 
@@ -106,9 +106,7 @@ impl SyslogRecv {
     pub fn update(&self) {
         match self.recv.try_recv() {
             Ok((id, ns, evt)) => self.add_to_fifo(id, ns, evt),
-            Err(TryRecvError::Empty) => {
-                log::debug!("No syslog message");
-            }
+            Err(TryRecvError::Empty) => {}
             Err(e) => {
                 let msg = format!("Error while receiving syslog: {e:?}");
                 log::error!("{}", msg);
@@ -118,16 +116,14 @@ impl SyslogRecv {
     }
 
     pub fn event(&self, player: PlayerId, evt: SyslogEvent) {
-        log::debug!("RECV {player} {evt:?}");
         self.add_to_fifo(player, self.tstart.elapsed().as_secs_f64(), evt);
     }
 
     fn add_to_fifo(&self, id: PlayerId, ns: f64, evt: SyslogEvent) {
+        log::debug!("Player {id} got event {evt:?}");
         let ok = {
             if let Some(fifo) = self.fifo.read().unwrap().get(&id) {
-                log::debug!("Attempt to write on fifo");
-                fifo.write().unwrap().push((ns, evt));
-                log::debug!("Added event {ns} {evt:?}");
+                fifo.write().unwrap().push((ns, evt.clone()));
                 true
             } else {
                 false
@@ -135,16 +131,14 @@ impl SyslogRecv {
         };
 
         if !ok {
-            log::debug!("Creating new FIFO for this player");
             let mut fifo = Fifo::new();
             fifo.push((ns, evt));
-            log::debug!("Added event {ns} {evt:?}");
             self.fifo.write().unwrap().insert(id, RwLock::new(fifo));
         }
     }
 }
 
-#[derive(Default, Clone, Copy, Debug, Serialize, Deserialize, IntoStaticStr)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, IntoStaticStr)]
 pub enum SyslogEvent {
     #[default]
     Placeholder,
@@ -152,12 +146,16 @@ pub enum SyslogEvent {
     // General game events
     GameStarted,
 
-    // Flight
+    // Ship
     ShipDestroyed(crate::ship::ShipId),
     ShipFlightFinished(crate::ship::ShipId),
-
-    // Extraction
     ExtractionStopped(crate::ship::ShipId),
+
+    // Warnings
+    UnloadedNothing {
+        station_cargo: crate::ship::cargo::ShipCargo,
+        ship_cargo: crate::ship::cargo::ShipCargo,
+    },
 }
 
 #[test]

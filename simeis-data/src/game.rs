@@ -64,10 +64,6 @@ impl Game {
         while stop.try_recv().is_err_and(|x| x == TryRecvError::Empty) {
             self.threadloop(&mut rng, &mut market_last_tick, &syslog);
             let took = Instant::now() - last_iter;
-            log::debug!(
-                "Loop took {took:?}, sleeping {:?}",
-                sleepmin_iter.saturating_sub(took)
-            );
             std::thread::sleep(sleepmin_iter.saturating_sub(took));
             last_iter = Instant::now();
         }
@@ -83,7 +79,6 @@ impl Game {
 
         for (player_id, player) in self.players.read().unwrap().iter() {
             let mut player = player.write().unwrap();
-            log::debug!("Update player {player_id} money");
             player.update_money(ITER_PERIOD.as_secs_f64());
 
             let mut deadship = vec![];
@@ -95,7 +90,6 @@ impl Game {
                             ship.state = ShipState::Idle;
                             if ship.hull_decay >= ship.hull_decay_capacity {
                                 deadship.push(*id);
-                                syslog.event(*player_id, SyslogEvent::ShipDestroyed(*id));
                             } else {
                                 syslog.event(*player_id, SyslogEvent::ShipFlightFinished(*id));
                             }
@@ -113,12 +107,12 @@ impl Game {
                 }
             }
             for id in deadship {
+                syslog.event(*player_id, SyslogEvent::ShipDestroyed(id));
                 player.ships.remove(&id);
             }
         }
-        log::debug!("Update players finished");
+
         syslog.update();
-        log::debug!("Update syslogs finished");
     }
 
     pub fn stop(self, handle: JoinHandle<()>) {
@@ -130,9 +124,9 @@ impl Game {
 
     pub fn new_player<T: ToString>(&self, name: T) -> Result<(PlayerId, String), Errcode> {
         let name = name.to_string();
-        for (_, player) in self.players.read().unwrap().iter() {
+        for (pid, player) in self.players.read().unwrap().iter() {
             if name == player.read().unwrap().name {
-                return Err(Errcode::PlayerAlreadyExists(name));
+                return Err(Errcode::PlayerAlreadyExists(*pid, name));
             }
         }
 

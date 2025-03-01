@@ -8,8 +8,8 @@ use super::{get_distance, SpaceCoord, SpaceObject};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ScanResult {
-    planets: Vec<PlanetInfo>,
-    stations: Vec<StationInfo>,
+    pub planets: Vec<PlanetInfo>,
+    pub stations: Vec<StationInfo>,
 }
 
 impl ScanResult {

@@ -41,11 +41,9 @@ impl Resource {
     #[inline]
     pub const fn base_price(&self) -> f64 {
         match self {
-            Resource::Stone => 2.0,
-            Resource::Iron => 5.0,
+            Resource::Stone | Resource::Helium => 3.5,
 
-            Resource::Helium => 2.0,
-            Resource::Ozone => 5.0,
+            Resource::Iron | Resource::Ozone => 7.0,
 
             Resource::Fuel => 5.0,
             Resource::HullPlate => 4.0,
@@ -54,10 +52,9 @@ impl Resource {
 
     pub fn volume(&self) -> f64 {
         match self {
-            Resource::Stone => 0.5,
-            Resource::Iron => 0.3,
-            Resource::Helium => 0.5,
-            Resource::Ozone => 0.3,
+            Resource::Stone | Resource::Helium => 0.85,
+            Resource::Iron | Resource::Ozone => 0.3,
+
             Resource::Fuel => 2.0,
             Resource::HullPlate => 0.05,
         }
@@ -66,7 +63,7 @@ impl Resource {
     pub fn mineable(&self, rank: u8) -> bool {
         match self {
             Resource::Stone => true,
-            Resource::Iron => rank > 1,
+            Resource::Iron => rank > 3,
             _ => false,
         }
     }
@@ -74,18 +71,16 @@ impl Resource {
     pub fn suckable(&self, rank: u8) -> bool {
         match self {
             Resource::Helium => true,
-            Resource::Ozone => rank > 1,
+            Resource::Ozone => rank > 3,
             _ => false,
         }
     }
 
     pub fn extraction_difficulty(&self) -> f64 {
         match self {
-            Resource::Stone => 0.25,
-            Resource::Iron => 2.0,
+            Resource::Stone | Resource::Helium => 0.08,
 
-            Resource::Helium => 0.25,
-            Resource::Ozone => 2.0,
+            Resource::Iron | Resource::Ozone => 2.0,
 
             // All the things that are only crafted
             _ => unreachable!("Extraction difficulty on crafted resources"),
@@ -99,7 +94,6 @@ impl ExtractionInfo {
     pub fn create(ship: &Ship, planet: &Planet) -> Self {
         let mut extraction = BTreeMap::new();
         for (_, smod) in ship.modules.iter() {
-            log::debug!("Ship got module {:?}", smod.modtype);
             for (res, rate) in smod.can_extract(&ship.crew, planet) {
                 if let Some(rrate) = extraction.get_mut(&res) {
                     *rrate += rate;

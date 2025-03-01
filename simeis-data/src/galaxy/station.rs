@@ -173,7 +173,6 @@ impl Station {
             return Err(Errcode::NoTraderAssigned);
         };
         let cm = self.crew.0.get(&trader).unwrap();
-        log::debug!("{:?}", self.cargo);
         let Some(can_cargo) = self.cargo.resources.get(resource) else {
             return Err(Errcode::SellNothing);
         };

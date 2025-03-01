@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::resources::Resource;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ShipCargo {
     pub capacity: f64,
     pub usage: f64,
@@ -27,7 +27,6 @@ impl ShipCargo {
     }
 
     pub fn add_resource(&mut self, res: &Resource, mut amnt: f64) -> f64 {
-        log::debug!("Added {amnt} {res:?} to cargo");
         let added = res.volume() * amnt;
         if self.usage == self.capacity {
             return 0.0;
