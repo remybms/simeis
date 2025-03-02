@@ -46,7 +46,7 @@ impl Resource {
             Resource::Iron | Resource::Ozone => 7.0,
 
             Resource::Fuel => 5.0,
-            Resource::HullPlate => 4.0,
+            Resource::HullPlate => 3.5,
         }
     }
 

@@ -331,12 +331,21 @@ d'erreurs où l'ID attendu n'est pas le bon
   "/station/{station_id}/upgrades", "get_station_upgrade_price", [
 
     Retourne le prix à payer pour chaque amélioration de la station:
-    - `cargo-expansion`: Le prix par unité de cargo que l'on peut ajouter à la station
-    - `trader-upgrade`: Le prix à payer pour augmenter le rang du trader de 1
+    - `cargo-expansion`: Prix par extension de cargo (voir @buy_cargo_exp)
+    - `trader-upgrade`: Prix pour augmenter le rang du trader (voir @upgrade_trader)
 
     *Attention* La fonction de `ApiClient` nécessite de passer un paramètre `key`
     correspondant au type d'amélioration à avoir
   ], none,
+)
+
+#descr("Acheter une extension de cargo à la station", "buy_cargo_exp",
+  "/station/{station_id}/shop/cargo/buy/{amount}", "buy_station_cargo", [
+    Améliore le cargo de la station en y ajoutant une quantité `amount` de capacité
+    de cargo.
+
+    Le prix augmentera à chaque extension achetée
+  ], "vous n'avez pas assez d'argent",
 )
 
 #descr("Scanner les planètes aux alentours", "station_scan", "/station/{station_id}/scan", "station_scan", [
@@ -514,6 +523,7 @@ Chaque transaction retourne une donnée `MarketTx` comprenant:
 
   Ainsi, les logs montreront lorsque:
   - Le jeu a commencé pour ce joueur
+  - Le joueur a perdu
   - Un vaisseau a atteint sa destination
   - Un vaisseau a arrêté d'extraire des resources car son cargo est plein
   - Un vaisseau a été détruit

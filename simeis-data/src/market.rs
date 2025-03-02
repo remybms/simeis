@@ -69,14 +69,16 @@ impl Market {
     }
 
     pub fn buy(&mut self, trader: &CrewMember, r: &Resource, amnt: f64) -> MarketTx {
+        assert!(amnt > 0.0);
         let fee_rate = fee_rate(trader.rank);
         let amnt_wfee = amnt * (1.0 - fee_rate);
 
         let price = *self.prices.get(r).unwrap();
+        assert!(price > 0.0);
         let price_inc_max = ((amnt * price) / PRICE_INC_DIV) * PRICE_INC_RANGE_MAX;
         let price_inc_min = price_inc_max * PRICE_INC_MIN_RATIO;
         let mut rng = rand::rng();
-        let inc = rng.random_range(price_inc_min..price_inc_max);
+        let inc = rng.random_range(price_inc_min..=price_inc_max);
         *self.prices.get_mut(r).unwrap() *= 1.0 + inc;
 
         let fees = (amnt * fee_rate) * price;
@@ -89,9 +91,11 @@ impl Market {
     }
 
     pub fn sell(&mut self, trader: &CrewMember, r: &Resource, amnt: f64) -> MarketTx {
+        assert!(amnt > 0.0);
         let fee_rate = fee_rate(trader.rank);
 
         let price = *self.prices.get(r).unwrap();
+        assert!(price > 0.0);
         let cost = amnt * price;
         let cost_wfee = cost * (1.0 - fee_rate);
         let fees = cost * fee_rate;
@@ -99,7 +103,7 @@ impl Market {
         let price_dec_max = (cost / PRICE_INC_DIV) * PRICE_INC_RANGE_MAX;
         let price_dec_min = price_dec_max * PRICE_INC_MIN_RATIO;
         let mut rng = rand::rng();
-        let dec = rng.random_range(price_dec_min..price_dec_max);
+        let dec = rng.random_range(price_dec_min..=price_dec_max);
         *self.prices.get_mut(r).unwrap() *= 1.0 - dec;
 
         MarketTx {

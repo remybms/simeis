@@ -86,8 +86,9 @@ impl Player {
             let tleft = std::time::Duration::from_secs_f64(self.money / self.costs);
             syslog.event(self.id, SyslogEvent::LowFunds(tleft));
         }
-        if self.money < 0.0 {
+        if self.money < 0.0 && !self.lost {
             self.lost = true;
+            syslog.event(self.id, SyslogEvent::GameLost);
             // TODO (#19)  Allow to create a new game with the same name if old one lost
             // TODO (#19)  What to do with its resources, ships, etc...
         }

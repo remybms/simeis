@@ -21,7 +21,7 @@ pub mod shipstats;
 pub mod upgrade;
 
 const PILOT_FUEL_SHARE: u8 = 5; // Rank 10 = 4/5 fuel consumption
-const HULL_USAGE_BASE: f64 = 0.15;
+const HULL_USAGE_BASE: f64 = 5.0 / 100.0;
 
 const FUEL_TANK_CAP_PRICE: f64 = 3.0;
 const CARGO_CAP_PRICE: f64 = 10.0;
