@@ -145,9 +145,10 @@ async fn get_player(srv: GameState, id: Path<PlayerId>, req: HttpRequest) -> imp
         return build_response(Err(Errcode::NoPlayerKey));
     };
     let id = id.as_ref();
-    let player = srv.players
-        .read().await
-        .get(id).unwrap().clone();
+    let players = srv.players.read().await;
+    let Some(player) = players.get(id) else {
+        return build_response(Err(Errcode::PlayerNotFound(*id)));
+    };
     let player = player.read().await;
     let res = if player.key == key {
         Ok(json!({

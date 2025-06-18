@@ -61,6 +61,7 @@ impl Game {
         };
 
         let thread_data = data.clone();
+        // TODO Reduce stack size of this task
         let thread = tokio::spawn(async move {
             thread_data.start(recv_stop, sysrecv).await
         });
@@ -96,7 +97,7 @@ impl Game {
                     #[cfg(not(feature = "testing"))]
                     {
                         let took = Instant::now() - last_iter;
-                        std::thread::sleep(sleepmin_iter.saturating_sub(took));
+                        tokio::time::sleep(sleepmin_iter.saturating_sub(took)).await;
                         last_iter = Instant::now();
                     }
                 },
