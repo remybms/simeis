@@ -39,7 +39,7 @@ async fn main() -> std::io::Result<()> {
     .bind(("127.0.0.1", port))?
     // With multiple workers but without the "watch_game" script, works OK
     // With 1 worker only, works like a charm
-    // .workers(1)
+    .workers(1)
     .run()
     .await;
 
