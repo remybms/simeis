@@ -167,9 +167,9 @@ impl Game {
     }
 
     pub async fn new_player(&self, name: String) -> Result<(PlayerId, String), Errcode> {
-        let mut index = self.player_index.write().await;     // OK
-        let mut players = self.players.write().await;        // OK
-        let mut galaxy = self.galaxy.write().await;          // OK
+        let mut index = self.player_index.write().await;
+        let mut players = self.players.write().await;
+        let mut galaxy = self.galaxy.write().await;
         let station = galaxy.init_new_station().await;
 
         let player = Player::new(station, name);

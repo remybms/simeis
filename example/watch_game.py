@@ -7,7 +7,8 @@ import json
 import time
 import urllib.request
 
-# TODO HTTP server that serves a graph of the data
+# TODO Put names to track in sys.argv
+#      If a player name starts with one of the names in sys.argv, add it even if it's not in the top NMAX players
 
 INIT = False
 HIST = {}
@@ -68,7 +69,6 @@ def get_market():
     return get("market/prices")["prices"]
 
 def disp_market(resources):
-    res = ""
     market = get_market()
     max_res_len = max([len(k) for k in market.keys()])
     disp = {}
@@ -90,14 +90,16 @@ def disp_market(resources):
     max_mid = max([len(d["mid"]) for _, d in disp.items()])
     max_tail = max([len(d["tail"]) for _, d in disp.items()])
 
+    buffer = ""
     for res, d in disp.items():
-        res += "{}{}{}{}{}{}{}".format(
+        buffer += "{}{}{}{}{}{}{}".format(
             res, " " * (max_res + 1 - len(res)),
             d["head"], " " * (max_head + 1 - len(d["head"])),
             d["mid"], " " * (max_mid + 1 - len(d["mid"])),
             d["tail"], " " * (max_tail + 1 - len(d["tail"])),
         ) + "\n"
-    return res
+
+    return buffer
 
 resources = get_resources()
 for (res, data) in resources.items():

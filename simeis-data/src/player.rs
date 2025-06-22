@@ -67,6 +67,7 @@ impl Player {
         }
     }
 
+    // SAFETY Will deadlock if a &mut station exists when this is called
     pub async fn update_wages(&mut self, galaxy: &Galaxy) {
         self.costs = 0.0;
         let mut stations = vec![];
@@ -74,8 +75,8 @@ impl Player {
             stations.push(galaxy.get_station(coord).await.unwrap());
         }
 
-        // Stations read after
         for station in stations {
+            // Deadlock because of this
             let station = station.read().await;
             self.costs += station.crew.sum_wages();
             self.costs += station.idle_crew.sum_wages();
