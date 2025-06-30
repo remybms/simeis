@@ -985,6 +985,18 @@ async fn tick_server(srv: GameState) -> impl web::Responder {
     build_response(Ok(json!({})))
 }
 
+#[cfg(feature = "testing")]
+#[web::get("/tick/{n}")]
+async fn tick_server_n(srv: GameState, n: Path<usize>) -> impl web::Responder {
+    let n = n.as_ref().clone();
+    for _ in 0..n {
+        let Ok(_) = srv.send_sig.send(simeis_data::game::GameSignal::Tick).await else {
+            return build_response(Err(Errcode::GameSignalSend));
+        };
+    }
+    build_response(Ok(json!({})))
+}
+
 // CHECKED
 #[web::get("/resources")]
 async fn resources_info() -> impl web::Responder {
@@ -1059,7 +1071,7 @@ async fn gamestats(srv: GameState) -> impl web::Responder {
 
 pub fn configure(srv: &mut ServiceConfig) {
     #[cfg(feature = "testing")]
-    srv.service(tick_server);
+    srv.service(tick_server).service(tick_server_n);
 
     srv.service(ping)
         .service(gamestats)
