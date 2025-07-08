@@ -1,4 +1,4 @@
-PORT=8080
+PORT=9999 # 8080
 # URL=f"http://0.0.0.0:{PORT}"
 URL=f"http://103.45.247.164:{PORT}"
 
@@ -73,6 +73,8 @@ def disp_market(resources):
     max_res_len = max([len(k) for k in market.keys()])
     disp = {}
     for (res, price) in market.items():
+        if price is None or price < 0:
+            price = 0
         MIN[res] = round(min(MIN[res], price), 2)
         MAX[res] = round(max(MAX[res], price), 2)
         relp = round((price / resources[res]["base-price"]) * 100, 2)

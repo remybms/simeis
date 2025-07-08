@@ -36,10 +36,10 @@ pub enum ShipUpgrade {
 impl ShipUpgrade {
     pub fn get_price(&self) -> f64 {
         match self {
-            ShipUpgrade::CargoExpansion => CARGO_EXP_ADD_CAP * CARGO_CAP_PRICE * 1.5,
-            ShipUpgrade::ReactorUpgrade => (REACTOR_UPG_ADD as f64) * REACTOR_POWER_PRICE * 1.5,
-            ShipUpgrade::HullUpgrade => HULL_UPG_ADD * HULL_DECAY_CAP_PRICE * 1.5,
-            ShipUpgrade::Shield => (SHIELD_UPG_ADD as f64) * SHIELD_PRICE * 1.5,
+            ShipUpgrade::CargoExpansion => CARGO_EXP_ADD_CAP * CARGO_CAP_PRICE * 1.0,
+            ShipUpgrade::ReactorUpgrade => (REACTOR_UPG_ADD as f64) * REACTOR_POWER_PRICE * 1.0,
+            ShipUpgrade::HullUpgrade => HULL_UPG_ADD * HULL_DECAY_CAP_PRICE * 1.0,
+            ShipUpgrade::Shield => (SHIELD_UPG_ADD as f64) * SHIELD_PRICE * 1.0,
         }
     }
 

@@ -32,11 +32,12 @@ impl From<CrewMemberType> for CrewMember {
 
 impl CrewMember {
     pub fn wage(&self) -> f64 {
+        let op = 0.75;
         let base = match self.member_type {
-            CrewMemberType::Pilot => 5.5 * 1.2,
-            CrewMemberType::Operator => 0.9 * 1.2,
-            CrewMemberType::Trader => 2.6 * 1.2,
-            CrewMemberType::Soldier => 1.5 * 1.2,
+            CrewMemberType::Operator => op,
+            CrewMemberType::Pilot => op * 8.0,
+            CrewMemberType::Trader => op * 5.0,
+            CrewMemberType::Soldier => op * 2.5,
         };
         base * (self.rank as f64).powf(WAGE_INC_RANK_POWF)
     }
