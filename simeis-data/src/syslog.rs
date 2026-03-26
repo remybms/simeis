@@ -126,9 +126,9 @@ impl SyslogRecv {
     async fn add_to_fifo(&self, id: PlayerId, ns: f64, evt: SyslogEvent) {
         log::debug!("Player {id} got event {evt:?}");
         let ok = {
-            let sysfifo = self.fifo.read().await; // OK
+            let sysfifo = self.fifo.read().await;
             if let Some(fifo) = sysfifo.get(&id) {
-                let mut player_fifo = fifo.write().await; // OK
+                let mut player_fifo = fifo.write().await;
                 player_fifo.push((ns, evt.clone()));
                 true
             } else {
@@ -139,7 +139,7 @@ impl SyslogRecv {
         if !ok {
             let mut fifo = Fifo::new();
             fifo.push((ns, evt));
-            let mut sysfifo = self.fifo.write().await; // OK
+            let mut sysfifo = self.fifo.write().await;
             sysfifo.insert(id, Arc::new(RwLock::new(fifo)));
         }
     }

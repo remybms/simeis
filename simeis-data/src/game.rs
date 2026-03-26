@@ -109,12 +109,11 @@ impl Game {
     async fn threadloop<R: Rng>(&self, rng: &mut R, mlt: &mut Instant, syslog: &SyslogRecv) {
         let market_change_proba = (mlt.elapsed().as_secs_f64() / MARKET_CHANGE_SEC).min(1.0);
 
-        // OK
         let players = self.players.read().await;
         let mut all_players: Vec<PlayerId> = players.keys().cloned().collect();
         all_players.sort();
         for player_id in all_players {
-            let mut player = players.get(&player_id).unwrap().write().await; // OK
+            let mut player = players.get(&player_id).unwrap().write().await;
             player.update_money(syslog, ITER_PERIOD.as_secs_f64()).await;
 
             let mut deadship = vec![];
@@ -156,7 +155,7 @@ impl Game {
 
         if rng.random_bool(market_change_proba) {
             #[cfg(not(feature = "testing"))]
-            self.market.write().await.update_prices(rng); // OK
+            self.market.write().await.update_prices(rng);
             *mlt = Instant::now();
         }
 
