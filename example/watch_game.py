@@ -1,10 +1,16 @@
 PORT=8080
 URL=f"http://0.0.0.0:{PORT}"
 
+import sys
 import os
 import json
 import time
 import urllib.request
+
+if len(sys.argv) > 1:
+    PLAYERS = sys.argv[1:]
+else:
+    PLAYERS = None
 
 INIT = False
 HIST = {}
@@ -13,7 +19,7 @@ class SimeisError(Exception):
     pass
 
 NMAX=30
-WIDTH=120
+WIDTH=100
 SCORE="█"
 POTENTIAL="▒"
 VOID=" "
@@ -125,6 +131,8 @@ while True:
     max_score = max([max(v["score"], 0) + v["potential"] for v in info.values()])
     maxn = max([len(data["name"]) for (_, data) in players])
     for (player, data) in players:
+        if PLAYERS is not None and data["name"] not in PLAYERS:
+            continue
         if player not in HIST:
             HIST[player] = []
 

@@ -134,7 +134,7 @@ class SimeisSDK:
     def buy_plates_for_repair(self, sta, ship_id):
         ship = self.get(f"/ship/{ship_id}")
         req = int(ship["hull_decay"])
-        # No need
+        # Pas besoin
         if req == 0:
             return None
 
@@ -151,7 +151,7 @@ class SimeisSDK:
         ship = self.get(f"/ship/{ship_id}")
         req = int(ship["hull_decay"])
 
-        # No need
+        # Pas besoin
         if req == 0:
             return None
 
@@ -168,7 +168,7 @@ class SimeisSDK:
         ship = self.get(f"/ship/{ship_id}")
         req = int(ship["fuel_tank_capacity"] - ship["fuel_tank"])
 
-        # No need for any refuel
+        # Pas besoin
         if req == 0:
             return
 
@@ -185,7 +185,7 @@ class SimeisSDK:
         ship = self.get(f"/ship/{ship_id}")
         req = int(ship["fuel_tank_capacity"] - ship["fuel_tank"])
 
-        # No need for any refuel
+        # Pas besoin
         if req == 0:
             return
 

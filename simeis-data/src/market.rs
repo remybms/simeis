@@ -80,11 +80,13 @@ impl Market {
         assert!(price > 0.0);
         let cost = amnt * price;
         let fees = cost * fee_rate;
-        let price_inc_max = (cost / PRICE_INC_CAP).max(1.0) * PRICE_INC_RANGE_MAX;
-        let price_inc_min = (cost / PRICE_INC_CAP).max(1.0) * PRICE_INC_RANGE_MIN;
-        let mut rng = rand::rng();
-        let inc = rng.random_range(price_inc_min..=price_inc_max);
-        *self.prices.get_mut(r).unwrap() *= 1.0 + inc;
+
+        // TODO (#15) Fixup influence on market price
+        // let price_inc_max = (cost / PRICE_INC_CAP).max(1.0) * PRICE_INC_RANGE_MAX;
+        // let price_inc_min = (cost / PRICE_INC_CAP).max(1.0) * PRICE_INC_RANGE_MIN;
+        // let mut rng = rand::rng();
+        // let inc = rng.random_range(price_inc_min..=price_inc_max);
+        // *self.prices.get_mut(r).unwrap() *= 1.0 + inc;
 
         MarketTx {
             added_cargo: Some((*r, amnt)),
@@ -103,11 +105,12 @@ impl Market {
         let cost = amnt * price;
         let fees = cost * fee_rate;
 
-        let price_dec_max = (cost / PRICE_INC_CAP).max(1.0) * PRICE_INC_RANGE_MAX;
-        let price_dec_min = (cost / PRICE_INC_CAP).max(1.0) * PRICE_INC_RANGE_MIN;
-        let mut rng = rand::rng();
-        let dec = rng.random_range(price_dec_min..=price_dec_max);
-        *self.prices.get_mut(r).unwrap() *= 1.0 - dec;
+        // TODO (#15) Fixup influence on market price
+        // let price_dec_max = (cost / PRICE_INC_CAP).max(1.0) * PRICE_INC_RANGE_MAX;
+        // let price_dec_min = (cost / PRICE_INC_CAP).max(1.0) * PRICE_INC_RANGE_MIN;
+        // let mut rng = rand::rng();
+        // let dec = rng.random_range(price_dec_min..=price_dec_max);
+        // *self.prices.get_mut(r).unwrap() *= 1.0 - dec;
 
         MarketTx {
             removed_cargo: Some((*r, amnt)),

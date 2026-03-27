@@ -23,7 +23,7 @@ impl Game {
         // On a besoin de savoir quelle planète miner pour équiper notre vaisseau
         let all_planets = self.sdk.scan_planets(station_id)?;
         let nearest_planet = all_planets.first().unwrap();
-        let nearest_planet_pos = get_planet_position(nearest_planet).unwrap();
+        let nearest_planet_pos = get_position(nearest_planet).unwrap();
         println!("Targeting planet {nearest_planet:?}");
 
         // Si on commence une nouvelle partie, on s'équipe
@@ -133,25 +133,32 @@ impl Game {
             }
 
             // On achète du carburant et on fait le plein
-            let tx = self.sdk.buy_fuel_for_refuel(station_id, ship_id)?;
-            let removed_money = json_get_float("removed_money", &tx).unwrap();
-            cycletot -= removed_money;
-            println!(
-                "Bought {} of Fuel for {removed_money} credits (fees {} credits)",
-                json_get_float("added_cargo", &tx).unwrap(),
-                json_get_float("fees", &tx).unwrap(),
-            );
+            if let Some(tx) = self.sdk.buy_fuel_for_refuel(station_id, ship_id)? {
+                let removed_money = json_get_float("removed_money", &tx).unwrap();
+                cycletot -= removed_money;
+
+                let added = json_get_list("added_cargo", &tx).unwrap()
+                    .get(1).unwrap()
+                    .as_f64().unwrap();
+                println!(
+                    "Bought {added} of Fuel for {removed_money} credits (fees {} credits)",
+                    json_get_float("fees", &tx).unwrap(),
+                );
+            }
             self.sdk.refuel_ship(station_id, ship_id)?;
 
             // On achète des plaques de coque, et on répare la coque
-            let tx = self.sdk.buy_plates_for_repair(station_id, ship_id)?;
-            let removed_money = json_get_float("removed_money", &tx).unwrap();
-            cycletot -= removed_money;
-            println!(
-                "Bought {} of HullPlate for {removed_money} credits (fees {} credits)",
-                json_get_float("added_cargo", &tx).unwrap(),
-                json_get_float("fees", &tx).unwrap(),
-            );
+            if let Some(tx) = self.sdk.buy_plates_for_repair(station_id, ship_id)? {
+                let removed_money = json_get_float("removed_money", &tx).unwrap();
+                cycletot -= removed_money;
+                let added = json_get_list("added_cargo", &tx).unwrap()
+                    .get(1).unwrap()
+                    .as_f64().unwrap();
+                println!(
+                    "Bought {added} of HullPlate for {removed_money} credits (fees {} credits)",
+                    json_get_float("fees", &tx).unwrap(),
+                );
+            }
             self.sdk.repair_ship(station_id, ship_id)?;
 
             // Rebelotte

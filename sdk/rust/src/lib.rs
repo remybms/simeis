@@ -1,12 +1,22 @@
 #![allow(dead_code, unused_variables)]
-use serde_json::{Map, Value};
-use std::{collections::HashMap, path::PathBuf, time::Duration};
+use serde_json::Value;
+
+use std::path::PathBuf;
+use std::time::Duration;
+use std::collections::HashMap;
 
 pub fn get_id(data: &Value) -> u64 {
     json_get_uint("id", data).unwrap()
 }
 
-pub fn get_planet_position(planet: &Value) -> Option<(u64, u64, u64)> {
+pub fn get_dist(posa: (u64, u64, u64), posb: (u64, u64, u64)) -> f64 {
+    let xd = (posa.0 as f64) - (posb.0 as f64);
+    let yd = (posa.1 as f64) - (posb.1 as f64);
+    let zd = (posa.2 as f64) - (posb.2 as f64);
+    (xd.powf(2.0) + yd.powf(2.0) + zd.powf(2.0)).sqrt()
+}
+
+pub fn get_position(planet: &Value) -> Option<(u64, u64, u64)> {
     let v = json_get_list("position", planet)?;
     match (
         v.first().and_then(|n| n.as_u64()),
@@ -25,11 +35,17 @@ pub fn json_get_key<'a>(key: &str, mut val: &'a Value) -> Option<&'a Value> {
     }
     Some(val)
 }
-pub fn json_get_list<'a>(key: &str, val: &'a Value) -> Option<&'a Vec<Value>> {
-    json_get_key(key, val)?.as_array()
+pub fn json_get_list<'a>(key: &str, val: &'a Value) -> Option<Vec<&'a Value>> {
+    let val = json_get_key(key, val)?.as_array()?;
+    Some(val.iter().collect())
 }
-pub fn json_get_dict<'a>(key: &str, val: &'a Value) -> Option<&'a Map<String, Value>> {
-    json_get_key(key, val)?.as_object()
+pub fn json_get_dict<'a>(key: &str, val: &'a Value) -> Option<HashMap<&'a String, &'a Value>> {
+    let val = json_get_key(key, val)?.as_object()?;
+    let mut res = HashMap::new();
+    for (key, val) in val.iter() {
+        res.insert(key, val);
+    }
+    Some(res)
 }
 pub fn json_get_float(key: &str, val: &Value) -> Option<f64> {
     json_get_key(key, val)?.as_f64()
@@ -67,7 +83,6 @@ impl SimeisSDK {
 
     pub fn get<T: ToString>(&self, path: T) -> ApiResult {
         debug_assert!(path.to_string().starts_with("/"));
-        println!("GET {}", path.to_string());
 
         let mut req = ureq::get(format!("{}{}", self.url, path.to_string()));
         if let Some(ref key) = self.player_key {
@@ -109,10 +124,8 @@ impl SimeisSDK {
         let path = PathBuf::from(format!("./{username}.json"));
 
         let player = if !path.exists() || force_register {
-            println!("Creating player {username}");
             let player_tmp = self.get(format!("/player/new/{username}")).unwrap();
             let player_json_str = serde_json::to_string(&player_tmp).unwrap();
-            println!("{player_tmp:?}");
             std::fs::write(&path, player_json_str).expect("Unable to write player data to path");
             player_tmp
         } else {
@@ -126,7 +139,6 @@ impl SimeisSDK {
 
         let player_id = json_get_uint("playerId", &player).unwrap();
         std::thread::sleep(Duration::from_secs(1));
-        println!("{:?}", self.get(format!("/player/{player_id}")));
         let Ok(player_status) = self.get(format!("/player/{player_id}")) else {
             return self.setup_player(username, true);
         };
@@ -165,17 +177,19 @@ impl SimeisSDK {
     }
 
     pub fn shop_list_ship(&self, station_id: u64) -> Result<Vec<Value>, Value> {
-        let mut all = self.get(format!("/station/{station_id}/shipyard/list"))?;
-        let allvec = all.as_array_mut().unwrap();
+        let all = self.get(format!("/station/{station_id}/shipyard/list"))?;
+        let Value::Object(mut omap) = all else {
+            unreachable!();
+        };
+        let Some(Value::Array(mut allvec)) = omap.remove("ships") else {
+            unreachable!();
+        };
         allvec.sort_by(|a, b| {
             let pa = json_get_float("price", a).unwrap();
             let pb = json_get_float("price", b).unwrap();
             pa.partial_cmp(&pb).unwrap()
         });
-        let Value::Array(data) = all else {
-            unreachable!();
-        };
-        Ok(data)
+        Ok(allvec)
     }
 
     pub fn buy_ship(&self, station_id: u64, ship_id: u64) -> ApiResult {
@@ -240,45 +254,165 @@ impl SimeisSDK {
         self.get(format!("/ship/{ship_id}/travelcost/{x}/{y}/{z}"))
     }
 
-    // TODO
     pub fn travel(&self, ship_id: u64, position: (u64, u64, u64), wait_end: bool) -> ApiResult {
-        todo!()
+        let (x, y, z) = position;
+        let costs = self.get(format!("/ship/{ship_id}/navigate/{x}/{y}/{z}"))?;
+        if wait_end {
+            let duration = json_get_float("duration", &costs).unwrap();
+            std::thread::sleep(Duration::from_secs_f64(duration));
+            self.wait_until_ship_idle(ship_id, Duration::from_secs(1))?;
+        }
+        Ok(costs)
     }
 
-    pub fn wait_until_ship_idle(&self, ship_id: u64, time_sleep: Duration) -> ApiResult {
-        todo!()
+    pub fn wait_until_ship_idle(&self, ship_id: u64, time_sleep: Duration) -> Result<(), Value> {
+        let init_ship = self.get_ship_status(ship_id)?;
+        let mut idle_state = matches!(json_get_string("state", &init_ship), Some("Idle"));
+        while !idle_state {
+            std::thread::sleep(time_sleep);
+            let ship = self.get_ship_status(ship_id)?;
+            idle_state = matches!(json_get_string("state", &ship), Some("Idle"));
+        }
+        Ok(())
     }
-    pub fn buy_plates_for_repair(&self, station_id: u64, ship_id: u64) -> ApiResult {
-        todo!()
+    pub fn buy_plates_for_repair(&self, station_id: u64, ship_id: u64) -> Result<Option<Value>, Value> {
+        let ship = self.get_ship_status(ship_id)?;
+        let req = json_get_float("hull_decay", &ship).unwrap();
+
+        // Pas besoin
+        if req == 0.0 {
+            return Ok(None);
+        }
+
+        let cargo = self.get_station_resources(station_id)?;
+        let amnt_got = cargo.get("HullPlate").cloned().or(Some(0.0)).unwrap();
+        if amnt_got < req {
+            let need = req - amnt_got; 
+            Ok(Some(self.buy_resource(station_id, "HullPlate", need)?))
+        } else {
+            Ok(None)
+        }
     }
-    pub fn repair_ship(&self, station_id: u64, ship_id: u64) -> ApiResult {
-        todo!()
+
+    pub fn repair_ship(&self, station_id: u64, ship_id: u64) -> Result<Option<Value>, Value> {
+        let ship = self.get_ship_status(ship_id)?;
+        let req = json_get_float("hull_decay", &ship).unwrap();
+
+        // Pas besoin
+        if req == 0.0 {
+            return Ok(None);
+        }
+
+        let cargo = self.get_station_resources(station_id)?;
+        let amnt_got = cargo.get("HullPlate").cloned().or(Some(0.0)).unwrap();
+
+        if amnt_got > 0.0 {
+            Ok(Some(self.get(format!("/station/{station_id}/repair/{ship_id}"))?))
+        } else {
+            Ok(None)
+        }
     }
-    pub fn buy_fuel_for_refuel(&self, station_id: u64, ship_id: u64) -> ApiResult {
-        todo!()
+
+    pub fn buy_fuel_for_refuel(&self, station_id: u64, ship_id: u64) -> Result<Option<Value>, Value> {
+        let ship = self.get_ship_status(ship_id)?;
+        let current = json_get_float("fuel_tank", &ship).unwrap();
+        let capacity = json_get_float("fuel_tank_capacity", &ship).unwrap();
+        let req = capacity - current;
+
+        // Pas besoin
+        if req == 0.0 {
+            return Ok(None);
+        }
+
+        let cargo = self.get_station_resources(station_id)?;
+        let amnt_got = cargo.get("Fuel").cloned().or(Some(0.0)).unwrap();
+        if amnt_got < req {
+            let need = req - amnt_got; 
+            Ok(Some(self.buy_resource(station_id, "Fuel", need)?))
+        } else {
+            Ok(None)
+        }
     }
-    pub fn refuel_ship(&self, station_id: u64, ship_id: u64) -> ApiResult {
-        todo!()
+    pub fn refuel_ship(&self, station_id: u64, ship_id: u64) -> Result<Option<Value>, Value> {
+        let ship = self.get_ship_status(ship_id)?;
+        let current = json_get_float("fuel_tank", &ship).unwrap();
+        let capacity = json_get_float("fuel_tank_capacity", &ship).unwrap();
+        let req = capacity - current;
+
+        // Pas besoin
+        if req == 0.0 {
+            return Ok(None);
+        }
+
+        let cargo = self.get_station_resources(station_id)?;
+        let amnt_got = cargo.get("Fuel").cloned().or(Some(0.0)).unwrap();
+
+        if amnt_got > 0.0 {
+            Ok(Some(self.get(format!("/station/{station_id}/refuel/{ship_id}"))?))
+        } else {
+            Ok(None)
+        }
     }
     pub fn scan_planets(&self, station_id: u64) -> Result<Vec<Value>, Value> {
-        todo!()
+        let station = self.get_station_status(station_id)?;
+        let all_scanned = self.get(format!("/station/{station_id}/scan"))?;
+        let mut all_planets = json_get_list("planets", &all_scanned).unwrap();
+        all_planets.sort_by(|a, b| {
+            let stapos = get_position(&station).unwrap();
+            let posa = get_position(a).unwrap();
+            let dista = get_dist(stapos, posa);
+            let posb = get_position(b).unwrap();
+            let distb = get_dist(stapos, posb);
+            dista.partial_cmp(&distb).unwrap()
+        });
+        Ok(all_planets.iter().map(|v| (*v).clone()).collect())
     }
     pub fn mine(&self, ship_id: u64) -> ApiResult {
-        todo!()
+        self.get(format!("/ship/{ship_id}/extraction/start"))
     }
-    pub fn return_station_and_unload(&self, station_id: u64, ship_id: u64) -> ApiResult {
-        todo!()
+    pub fn return_station_and_unload(&self, station_id: u64, ship_id: u64) -> Result<Vec<Value>, Value> {
+        let ship = self.get_ship_status(ship_id)?;
+        let station = self.get_station_status(station_id)?;
+
+        let stapos = get_position(&station).unwrap();
+        if get_position(&ship).unwrap() != stapos {
+            self.travel(ship_id, stapos, true)?;
+        }
+
+        let cargo = json_get_dict("cargo.resources", &ship).unwrap();
+        let mut results = vec![];
+        for (res, amnt) in cargo {
+            let amnt = amnt.as_f64().unwrap();
+            assert!(amnt > 0.0);
+            if amnt == 0.0 {
+                continue;
+            }
+            let got = self.get(format!("/ship/{ship_id}/unload/{res}/{amnt}"))?;
+            results.push(got);
+        }
+        return Ok(results)
     }
     pub fn get_station_resources(&self, station_id: u64) -> Result<HashMap<String, f64>, Value> {
-        todo!()
+        let station = self.get_station_status(station_id)?;
+        let cargo = json_get_key("cargo.resources", &station).unwrap();
+        let mut resources = HashMap::new();
+        for (res, amnt) in cargo.as_object().unwrap() {
+            resources.insert(res.clone(), amnt.as_f64().unwrap());
+        }
+        Ok(resources)
     }
     pub fn get_market_prices(&self) -> Result<HashMap<String, f64>, Value> {
-        todo!()
+        let prices = self.get("/market/prices")?;
+        let mut resources = HashMap::new();
+        for (res, amnt) in prices.as_object().unwrap() {
+            resources.insert(res.clone(), amnt.as_f64().unwrap());
+        }
+        Ok(resources)
     }
     pub fn sell_resource(&self, station_id: u64, resource: &str, amnt: f64) -> ApiResult {
-        todo!()
+        self.get(format!("/market/{station_id}/sell/{resource}/{amnt}"))
     }
     pub fn buy_resource(&self, station_id: u64, resource: &str, amnt: f64) -> ApiResult {
-        todo!()
+        self.get(format!("/market/{station_id}/buy/{resource}/{amnt}"))
     }
 }
