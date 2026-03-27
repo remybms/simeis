@@ -1,9 +1,9 @@
 #![allow(dead_code, unused_variables)]
 use serde_json::Value;
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
-use std::collections::HashMap;
 
 pub fn get_id(data: &Value) -> u64 {
     json_get_uint("id", data).unwrap()
@@ -62,6 +62,7 @@ pub fn json_get_bool(key: &str, val: &Value) -> Option<bool> {
 
 pub type ApiResult = Result<Value, Value>;
 
+#[derive(Clone)]
 pub struct SimeisSDK {
     url: String,
     player_id: Option<u64>,
@@ -162,7 +163,7 @@ impl SimeisSDK {
         self.get(format!("/station/{station_id}"))
     }
 
-    pub fn shop_list_modules(&self, station_id: u64) -> Result<Vec<Value>, Value> {
+    pub fn list_shop_modules(&self, station_id: u64) -> Result<Vec<Value>, Value> {
         let mut all = self.get(format!("/station/{station_id}/shop/modules"))?;
         let allvec = all.as_array_mut().unwrap();
         allvec.sort_by(|a, b| {
@@ -176,7 +177,7 @@ impl SimeisSDK {
         Ok(data)
     }
 
-    pub fn shop_list_ship(&self, station_id: u64) -> Result<Vec<Value>, Value> {
+    pub fn list_shop_ship(&self, station_id: u64) -> Result<Vec<Value>, Value> {
         let all = self.get(format!("/station/{station_id}/shipyard/list"))?;
         let Value::Object(mut omap) = all else {
             unreachable!();
@@ -275,7 +276,11 @@ impl SimeisSDK {
         }
         Ok(())
     }
-    pub fn buy_plates_for_repair(&self, station_id: u64, ship_id: u64) -> Result<Option<Value>, Value> {
+    pub fn buy_plates_for_repair(
+        &self,
+        station_id: u64,
+        ship_id: u64,
+    ) -> Result<Option<Value>, Value> {
         let ship = self.get_ship_status(ship_id)?;
         let req = json_get_float("hull_decay", &ship).unwrap();
 
@@ -285,9 +290,9 @@ impl SimeisSDK {
         }
 
         let cargo = self.get_station_resources(station_id)?;
-        let amnt_got = cargo.get("HullPlate").cloned().or(Some(0.0)).unwrap();
+        let amnt_got = cargo.get("HullPlate").cloned().unwrap_or(0.0);
         if amnt_got < req {
-            let need = req - amnt_got; 
+            let need = req - amnt_got;
             Ok(Some(self.buy_resource(station_id, "HullPlate", need)?))
         } else {
             Ok(None)
@@ -304,16 +309,22 @@ impl SimeisSDK {
         }
 
         let cargo = self.get_station_resources(station_id)?;
-        let amnt_got = cargo.get("HullPlate").cloned().or(Some(0.0)).unwrap();
+        let amnt_got = cargo.get("HullPlate").cloned().unwrap_or(0.0);
 
         if amnt_got > 0.0 {
-            Ok(Some(self.get(format!("/station/{station_id}/repair/{ship_id}"))?))
+            Ok(Some(
+                self.get(format!("/station/{station_id}/repair/{ship_id}"))?,
+            ))
         } else {
             Ok(None)
         }
     }
 
-    pub fn buy_fuel_for_refuel(&self, station_id: u64, ship_id: u64) -> Result<Option<Value>, Value> {
+    pub fn buy_fuel_for_refuel(
+        &self,
+        station_id: u64,
+        ship_id: u64,
+    ) -> Result<Option<Value>, Value> {
         let ship = self.get_ship_status(ship_id)?;
         let current = json_get_float("fuel_tank", &ship).unwrap();
         let capacity = json_get_float("fuel_tank_capacity", &ship).unwrap();
@@ -325,9 +336,9 @@ impl SimeisSDK {
         }
 
         let cargo = self.get_station_resources(station_id)?;
-        let amnt_got = cargo.get("Fuel").cloned().or(Some(0.0)).unwrap();
+        let amnt_got = cargo.get("Fuel").cloned().unwrap_or(0.0);
         if amnt_got < req {
-            let need = req - amnt_got; 
+            let need = req - amnt_got;
             Ok(Some(self.buy_resource(station_id, "Fuel", need)?))
         } else {
             Ok(None)
@@ -345,10 +356,12 @@ impl SimeisSDK {
         }
 
         let cargo = self.get_station_resources(station_id)?;
-        let amnt_got = cargo.get("Fuel").cloned().or(Some(0.0)).unwrap();
+        let amnt_got = cargo.get("Fuel").cloned().unwrap_or(0.0);
 
         if amnt_got > 0.0 {
-            Ok(Some(self.get(format!("/station/{station_id}/refuel/{ship_id}"))?))
+            Ok(Some(
+                self.get(format!("/station/{station_id}/refuel/{ship_id}"))?,
+            ))
         } else {
             Ok(None)
         }
@@ -370,7 +383,11 @@ impl SimeisSDK {
     pub fn mine(&self, ship_id: u64) -> ApiResult {
         self.get(format!("/ship/{ship_id}/extraction/start"))
     }
-    pub fn return_station_and_unload(&self, station_id: u64, ship_id: u64) -> Result<Vec<Value>, Value> {
+    pub fn return_station_and_unload(
+        &self,
+        station_id: u64,
+        ship_id: u64,
+    ) -> Result<Vec<Value>, Value> {
         let ship = self.get_ship_status(ship_id)?;
         let station = self.get_station_status(station_id)?;
 
@@ -390,7 +407,7 @@ impl SimeisSDK {
             let got = self.get(format!("/ship/{ship_id}/unload/{res}/{amnt}"))?;
             results.push(got);
         }
-        return Ok(results)
+        Ok(results)
     }
     pub fn get_station_resources(&self, station_id: u64) -> Result<HashMap<String, f64>, Value> {
         let station = self.get_station_status(station_id)?;

@@ -32,7 +32,7 @@ impl Game {
         let ship_id;
         if all_my_ships.is_empty() {
             println!("Buying first ship");
-            let list_all_ships = self.sdk.shop_list_ship(station_id)?;
+            let list_all_ships = self.sdk.list_shop_ship(station_id)?;
             ship = list_all_ships.first().unwrap();
             ship_id = get_id(ship);
 
@@ -137,9 +137,12 @@ impl Game {
                 let removed_money = json_get_float("removed_money", &tx).unwrap();
                 cycletot -= removed_money;
 
-                let added = json_get_list("added_cargo", &tx).unwrap()
-                    .get(1).unwrap()
-                    .as_f64().unwrap();
+                let added = json_get_list("added_cargo", &tx)
+                    .unwrap()
+                    .get(1)
+                    .unwrap()
+                    .as_f64()
+                    .unwrap();
                 println!(
                     "Bought {added} of Fuel for {removed_money} credits (fees {} credits)",
                     json_get_float("fees", &tx).unwrap(),
@@ -151,9 +154,12 @@ impl Game {
             if let Some(tx) = self.sdk.buy_plates_for_repair(station_id, ship_id)? {
                 let removed_money = json_get_float("removed_money", &tx).unwrap();
                 cycletot -= removed_money;
-                let added = json_get_list("added_cargo", &tx).unwrap()
-                    .get(1).unwrap()
-                    .as_f64().unwrap();
+                let added = json_get_list("added_cargo", &tx)
+                    .unwrap()
+                    .get(1)
+                    .unwrap()
+                    .as_f64()
+                    .unwrap();
                 println!(
                     "Bought {added} of HullPlate for {removed_money} credits (fees {} credits)",
                     json_get_float("fees", &tx).unwrap(),

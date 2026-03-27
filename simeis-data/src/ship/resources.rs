@@ -30,10 +30,10 @@ pub enum Resource {
     Gold,
 
     // Gaseous
+    Hydrogen,
+    Oxygen,
     Helium,
     Ozone,
-    Freon,
-    Oxygen,
 
     // Crafted
     Fuel,
@@ -50,10 +50,10 @@ impl Resource {
     pub const fn base_price(&self) -> f64 {
         let base = 4.0;
         match self {
-            Resource::Stone | Resource::Helium => base,
-            Resource::Iron | Resource::Ozone => 4.0 * base,
-            Resource::Copper | Resource::Freon => 12.0 * base,
-            Resource::Gold | Resource::Oxygen => 16.0 * base,
+            Resource::Stone | Resource::Hydrogen => base,
+            Resource::Iron | Resource::Oxygen => 4.0 * base,
+            Resource::Copper | Resource::Helium => 12.0 * base,
+            Resource::Gold | Resource::Ozone => 16.0 * base,
             Resource::Fuel => base / 2.0,
             Resource::HullPlate => base / 3.0,
         }
@@ -61,10 +61,10 @@ impl Resource {
 
     pub fn volume(&self) -> f64 {
         match self {
-            Resource::Stone | Resource::Helium => 0.75,
-            Resource::Iron | Resource::Ozone => 2.5,
-            Resource::Copper | Resource::Freon => 3.0,
-            Resource::Gold | Resource::Oxygen => 0.25,
+            Resource::Stone | Resource::Hydrogen => 0.75,
+            Resource::Iron | Resource::Oxygen => 2.5,
+            Resource::Copper | Resource::Helium => 3.0,
+            Resource::Gold | Resource::Ozone => 0.25,
             Resource::Fuel => 2.0,
             Resource::HullPlate => 0.05,
         }
@@ -73,10 +73,10 @@ impl Resource {
     pub fn extraction_difficulty(&self) -> f64 {
         let base = 0.25;
         match self {
-            Resource::Stone | Resource::Helium => base,
-            Resource::Iron | Resource::Ozone => 3.75 * base,
-            Resource::Copper | Resource::Freon => 11.0 * base,
-            Resource::Gold | Resource::Oxygen => 14.0 * base,
+            Resource::Stone | Resource::Hydrogen => base,
+            Resource::Iron | Resource::Oxygen => 3.75 * base,
+            Resource::Copper | Resource::Helium => 11.0 * base,
+            Resource::Gold | Resource::Ozone => 14.0 * base,
 
             // All the things that are only crafted
             _ => unreachable!("Extraction difficulty on crafted resources"),
@@ -85,10 +85,10 @@ impl Resource {
 
     pub fn min_rank(&self) -> u8 {
         match self {
-            Resource::Stone | Resource::Helium => 0,
-            Resource::Iron | Resource::Ozone => 2,
-            Resource::Copper | Resource::Freon => 4,
-            Resource::Gold | Resource::Oxygen => 6,
+            Resource::Stone | Resource::Hydrogen => 0,
+            Resource::Iron | Resource::Oxygen => 2,
+            Resource::Copper | Resource::Helium => 4,
+            Resource::Gold | Resource::Ozone => 6,
             Resource::Fuel | Resource::HullPlate => 0,
         }
     }
@@ -104,7 +104,7 @@ impl Resource {
 
     pub fn suckable(&self, rank: u8) -> bool {
         match self {
-            Resource::Helium | Resource::Ozone | Resource::Freon | Resource::Oxygen => {
+            Resource::Hydrogen | Resource::Oxygen | Resource::Helium | Resource::Ozone => {
                 rank > self.min_rank()
             }
             _ => false,
