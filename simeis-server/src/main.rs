@@ -9,6 +9,8 @@ pub type GameState = actix_web::web::Data<Game>;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    console_subscriber::init();
+
     #[cfg(not(feature = "testing"))]
     let port = 8080;
 
@@ -33,6 +35,9 @@ async fn main() -> std::io::Result<()> {
             .app_data(game_state.clone())
             .configure(api::configure)
     })
+    // .workers(64)
+    .max_connection_rate(10240)
+    .worker_max_blocking_threads(2048)
     .bind(("0.0.0.0", port))?
     .run()
     .await;

@@ -70,6 +70,7 @@ impl Resource {
         }
     }
 
+    #[allow(unused_mut)]
     pub fn extraction_difficulty(&self) -> f64 {
         let mut base = 0.25;
 

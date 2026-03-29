@@ -24,6 +24,7 @@ class SimeisSDK:
         self.setup_player(username)
 
     def get(self, path, **qry):
+        print("GET", path)
         if hasattr(self, "player"):
             qry["key"] = self.player["key"]
 

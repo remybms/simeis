@@ -39,8 +39,7 @@ macro_rules! get_player {
         let Some(id) = index.get(&key) else {
             return build_response(Err(Errcode::NoPlayerWithKey));
         };
-        let players = $srv.players.read().await;
-        let player = players.get(id).unwrap();
+        let player = $srv.players.clone_val(id).await.unwrap();
         if player.read().await.lost {
             return build_response(Err(Errcode::PlayerLost));
         }
@@ -172,15 +171,12 @@ async fn get_syslogs(srv: GameState, req: HttpRequest) -> impl Responder {
 #[get("/player/new/{name}")]
 async fn new_player(srv: GameState, name: Path<String>) -> impl Responder {
     let name = name.to_string();
-    let players = srv.players.read().await;
-    let all_players = players.keys().collect::<Vec<&PlayerId>>();
-    for pid in all_players {
-        let player = players.get(pid).unwrap();
+    for pid in srv.players.get_all_keys().await {
+        let player = srv.players.clone_val(&pid).await.unwrap();
         if name == player.read().await.name {
-            return build_response(Err(Errcode::PlayerAlreadyExists(*pid, name)));
+            return build_response(Err(Errcode::PlayerAlreadyExists(pid, name)));
         }
     }
-    drop(players);
 
     let res = srv.new_player(name).await;
     build_response(res.map(|(id, key)| {
@@ -199,8 +195,7 @@ async fn get_player(srv: GameState, id: Path<PlayerId>, req: HttpRequest) -> imp
     };
     let id = id.as_ref();
 
-    let players = srv.players.read().await;
-    let Some(player) = players.get(id) else {
+    let Some(player) = srv.players.clone_val(&id).await else {
         return build_response(Err(Errcode::PlayerNotFound(*id)));
     };
     let player = player.read().await;
@@ -359,8 +354,9 @@ async fn hire_crew(
     let mut player = player.write().await;
     let galaxy = srv.galaxy.read().await;
     let station = get_station!(srv, station_id; player; galaxy);
-    let station = station.read().await;
+    let mut station = station.write().await;
     let id = station.hire_crew(&player.id, crewtype).await;
+    drop(station);
     player.update_costs(&galaxy).await;
     build_response(Ok(serde_json::json!({ "id": id })))
 }
@@ -418,7 +414,6 @@ async fn upgrade_ship_crew(
 
     let res = player.upgrade_ship_crew(&station, ship_id, crew_id);
     if res.is_ok() {
-        drop(station);
         player.update_costs(&galaxy).await;
     }
     build_response(res.map(|(p, r)| json!({ "new-rank": r, "cost": p})))
@@ -624,16 +619,12 @@ async fn buy_ship_module_upgrade(
     let station = get_station!(srv, station_id; player);
     let station = station.read().await;
 
-    build_response(
-        player
-            .buy_ship_module_upgrade(&station, ship_id, mod_id)
-            .map(|(c, r)| {
-                json!({
-                    "new-rank": r,
-                    "cost": c,
-                })
-            }),
-    )
+    let res = player.buy_ship_module_upgrade(&station, ship_id, mod_id);
+
+    build_response(res.map(|(c, r)| json!({
+        "new-rank": r,
+        "cost": c,
+    })))
 }
 
 // Buy a storage expansion for the station
@@ -720,8 +711,6 @@ async fn repair_ship(
     build_response(res.map(|v| json!({"added-hull": v})))
 }
 
-// FIXME Sometimes under heavy load, sometimes get a "Ship not found"
-// Get the status of a specific ship
 #[get("/ship/{ship_id}")]
 async fn get_ship_status(srv: GameState, id: Path<ShipId>, req: HttpRequest) -> impl Responder {
     let player = get_player!(srv, req);
@@ -748,11 +737,8 @@ async fn compute_travel_costs(
     let Some(ship) = player.ships.get(id) else {
         return build_response(Err(Errcode::ShipNotFound(*id)));
     };
-
-    build_response(
-        ship.compute_travel_costs((*x, *y, *z))
-            .map(|v| to_value(v).unwrap()),
-    )
+    let costs = ship.compute_travel_costs((*x, *y, *z));
+    build_response(costs.map(|v| to_value(v).unwrap()))
 }
 
 // Navigate to position (X, Y, Z), ship will have the state InFlight during the travel
@@ -771,8 +757,8 @@ async fn ask_navigate(
     let Some(ship) = player.ships.get_mut(id) else {
         return build_response(Err(Errcode::ShipNotFound(*id)));
     };
-
-    build_response(ship.set_travel(coord).map(|cost| json!(cost)))
+    let costs = ship.set_travel(coord);
+    build_response(costs.map(|cost| json!(cost)))
 }
 
 // Stop the naviguation, ship will become Idle, and stay in place
@@ -786,7 +772,8 @@ async fn stop_navigation(srv: GameState, args: Path<ShipId>, req: HttpRequest) -
     let Some(ship) = player.ships.get_mut(id) else {
         return build_response(Err(Errcode::ShipNotFound(*id)));
     };
-    build_response(ship.stop_navigation().map(|pos| json!({"position": pos})))
+    let res = ship.stop_navigation();
+    build_response(res.map(|pos| json!({"position": pos})))
 }
 
 // Start the extraction of resources on the planet, ship will have the state "Extracting" until its cargo is full
@@ -798,11 +785,8 @@ async fn start_extraction(srv: GameState, id: Path<ShipId>, req: HttpRequest) ->
         return build_response(Err(Errcode::ShipNotFound(*id)));
     };
     let galaxy = srv.galaxy.read().await;
-    build_response(
-        ship.start_extraction(&galaxy)
-            .await
-            .map(|v| to_value(v).unwrap()),
-    )
+    let res = ship.start_extraction(&galaxy).await;
+    build_response(res.map(|v| to_value(v).unwrap()))
 }
 
 // Stop the extraction of resources on the planet
@@ -814,8 +798,9 @@ async fn stop_extraction(srv: GameState, id: Path<ShipId>, req: HttpRequest) -> 
     let Some(ship) = player.ships.get_mut(id.as_ref()) else {
         return build_response(Err(Errcode::ShipNotFound(*id)));
     };
+    let res = ship.stop_extraction();
 
-    build_response(ship.stop_extraction().map(|v| to_value(v).unwrap()))
+    build_response(res.map(|v| to_value(v).unwrap()))
 }
 
 // Unload a specific amount of a specific resource on the station's storage
@@ -994,17 +979,19 @@ async fn resources_info() -> impl Responder {
 #[get("/gamestats")]
 async fn gamestats(srv: GameState) -> impl Responder {
     let mut data = BTreeMap::new();
-    let all_players = srv.players.read().await;
+    let all_players = srv.players.get_all_keys().await;
     let mut players = vec![];
-    for (id, player) in all_players.iter() {
-        players.push((id, player.read().await));
+    for id in all_players.iter() {
+        let player = srv.players.clone_val(&id).await.unwrap();
+        players.push((id, player));
     }
-    let galaxy = srv.galaxy.read().await;
 
     for (id, p) in players {
+        let player = p.read().await;
+        let galaxy = srv.galaxy.read().await;
         let potential = {
             let mut s = 0.0;
-            for (_, coord) in p.stations.iter() {
+            for (_, coord) in player.stations.iter() {
                 let sta = galaxy.get_station(coord).await.unwrap();
                 let station = sta.read().await;
                 s += station.get_cargo_potential_price(&id).await;
@@ -1012,17 +999,17 @@ async fn gamestats(srv: GameState) -> impl Responder {
             s
         };
 
-        let age = (Instant::now() - p.created).as_secs();
+        let age = (Instant::now() - player.created).as_secs();
         data.insert(
             id,
             json!({
-                "name": p.name,
-                "score": p.score,
+                "name": player.name,
+                "score": player.score,
                 "potential": potential,
                 "age": age,
-                "lost": p.lost,
-                "money": p.money,
-                "stations": p.stations,
+                "lost": player.lost,
+                "money": player.money,
+                "stations": player.stations,
             }),
         );
     }

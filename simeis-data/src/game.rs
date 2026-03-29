@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -19,6 +19,7 @@ use crate::market::{Market, MARKET_CHANGE_SEC};
 use crate::player::{Player, PlayerId, PlayerKey};
 use crate::ship::ShipState;
 use crate::syslog::{SyslogEvent, SyslogFifo, SyslogRecv, SyslogSend};
+use crate::utils::ShardedLockedData;
 
 #[cfg(not(feature = "extraspeed"))]
 const ITER_PERIOD: Duration = Duration::from_millis(20);
@@ -36,7 +37,7 @@ pub enum GameSignal {
 
 #[derive(Clone)]
 pub struct Game {
-    pub players: Arc<RwLock<BTreeMap<PlayerId, Arc<RwLock<Player>>>>>,
+    pub players: ShardedLockedData<PlayerId, Arc<RwLock<Player>>>,
     pub player_index: Arc<RwLock<HashMap<PlayerKey, PlayerId>>>,
     pub galaxy: Arc<RwLock<Galaxy>>,
     pub market: Arc<RwLock<Market>>,
@@ -61,7 +62,7 @@ impl Game {
             send_sig: send_stop,
             galaxy: Arc::new(RwLock::new(galaxy)),
             market: Arc::new(RwLock::new(Market::init())),
-            players: Arc::new(RwLock::new(BTreeMap::new())),
+            players: ShardedLockedData::new(20),
             player_index: Arc::new(RwLock::new(HashMap::new())),
             syslog: syssend.clone(),
             fifo_events: sysrecv.fifo.clone(),
@@ -70,6 +71,7 @@ impl Game {
         };
 
         let thread_data = data.clone();
+        // TODO Reduce stack size from this task, > 1024
         let thread = tokio::spawn(async move { thread_data.start(recv_stop, sysrecv).await });
         (thread, data)
     }
@@ -118,11 +120,10 @@ impl Game {
     async fn threadloop<R: Rng>(&self, rng: &mut R, mlt: &mut Instant, syslog: &SyslogRecv) {
         let market_change_proba = (mlt.elapsed().as_secs_f64() / MARKET_CHANGE_SEC).min(1.0);
 
-        let players = self.players.read().await;
-        let mut all_players: Vec<PlayerId> = players.keys().cloned().collect();
-        all_players.sort();
+        let all_players: Vec<PlayerId> = self.players.get_all_keys().await;
         for player_id in all_players {
-            let mut player = players.get(&player_id).unwrap().write().await;
+            let player = self.players.clone_val(&player_id).await.unwrap();
+            let mut player = player.write().await;
             player.update_money(syslog, ITER_PERIOD.as_secs_f64()).await;
 
             let mut deadship = vec![];
@@ -180,14 +181,13 @@ impl Game {
 
     pub async fn new_player(&self, name: String) -> Result<(PlayerId, String), Errcode> {
         let mut index = self.player_index.write().await;
-        let mut players = self.players.write().await;
 
         let player = Player::new(self.init_station, name);
         let pid = player.id;
         let key = BASE64_STANDARD.encode(player.key);
 
         index.insert(player.key, player.id);
-        players.insert(player.id, Arc::new(RwLock::new(player)));
+        self.players.insert(player.id, Arc::new(RwLock::new(player))).await;
         self.syslog.event(&pid, SyslogEvent::GameStarted).await;
         Ok((pid, key))
     }

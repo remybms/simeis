@@ -63,7 +63,7 @@ pub struct Station {
     pub position: SpaceCoord,
     pub shipyard: Vec<Ship>,
 
-    pub player_data: RwLock<BTreeMap<PlayerId, StationPlayerData>>,
+    pub player_data: BTreeMap<PlayerId, RwLock<StationPlayerData>>,
 }
 
 impl Station {
@@ -72,7 +72,7 @@ impl Station {
             id,
             position,
             shipyard: Ship::init_shipyard(position),
-            player_data: RwLock::new(BTreeMap::new()),
+            player_data: BTreeMap::new(),
         }
     }
 
@@ -82,10 +82,10 @@ impl Station {
     }
 
     pub async fn cargo_price(&self, player: &PlayerId) -> f64 {
-        let cap = if let Some(data) = self.player_data.read().await.get(player) {
-            data.cargo.capacity
+        let cap = if let Some(data) = self.player_data.get(player) {
+            data.read().await.cargo.capacity
         } else {
-            return STATION_INIT_CARGO;
+            STATION_INIT_CARGO
         };
         CARGO_BASE_PRICE.powf((cap - STATION_INIT_CARGO) / CARGO_PRICE_INCDIV)
     }
@@ -101,16 +101,14 @@ impl Station {
         }
         player.money -= cost;
         self.ensure_has_player_data(&player.id).await;
-        let mut apd = self.player_data.write().await;
-        let pd = apd.get_mut(&player.id).unwrap();
+        let mut pd = self.player_data.get(&player.id).unwrap().write().await;
         pd.cargo.capacity += *amnt as f64;
         Ok(pd.cargo.clone())
     }
 
     pub async fn assign_trader(&mut self, pid: &PlayerId, id: CrewId) -> Result<(), Errcode> {
         self.ensure_has_player_data(pid).await;
-        let mut apd = self.player_data.write().await;
-        let pd = apd.get_mut(pid).unwrap();
+        let mut pd = self.player_data.get(pid).unwrap().write().await;
         let Some(cm) = pd.idle_crew.0.remove(&id) else {
             return Err(Errcode::CrewMemberNotIdle(id));
         };
@@ -122,8 +120,7 @@ impl Station {
 
     pub async fn onboard_pilot(&mut self, id: CrewId, ship: &mut Ship) -> Result<(), Errcode> {
         self.ensure_has_player_data(&ship.owner).await;
-        let mut apd = self.player_data.write().await;
-        let pd = apd.get_mut(&ship.owner).unwrap();
+        let mut pd = self.player_data.get(&ship.owner).unwrap().write().await;
         let Some(cm) = pd.idle_crew.0.get(&id) else {
             return Err(Errcode::CrewMemberNotIdle(id));
         };
@@ -148,8 +145,7 @@ impl Station {
         modid: &ShipModuleId,
     ) -> Result<(), Errcode> {
         self.ensure_has_player_data(&ship.owner).await;
-        let mut apd = self.player_data.write().await;
-        let pd = apd.get_mut(&ship.owner).unwrap();
+        let mut pd = self.player_data.get(&ship.owner).unwrap().write().await;
         let Some(cm) = pd.idle_crew.0.get(&id) else {
             return Err(Errcode::CrewMemberNotIdle(id));
         };
@@ -177,8 +173,7 @@ impl Station {
         market: &mut Market,
     ) -> Result<MarketTx, Errcode> {
         self.ensure_has_player_data(&player.id).await;
-        let mut apd = self.player_data.write().await;
-        let pd = apd.get_mut(&player.id).unwrap();
+        let mut pd = self.player_data.get(&player.id).unwrap().write().await;
         let Some(trader) = pd.trader else {
             return Err(Errcode::NoTraderAssigned);
         };
@@ -205,8 +200,7 @@ impl Station {
         market: &mut Market,
     ) -> Result<MarketTx, Errcode> {
         self.ensure_has_player_data(&player.id).await;
-        let mut apd = self.player_data.write().await;
-        let pd = apd.get_mut(&player.id).unwrap();
+        let mut pd = self.player_data.get(&player.id).unwrap().write().await;
         let Some(trader) = pd.trader else {
             return Err(Errcode::NoTraderAssigned);
         };
@@ -232,10 +226,10 @@ impl Station {
         if self.position != ship.position {
             return Err(Errcode::ShipNotInStation);
         }
-        let mut apd = self.player_data.write().await;
-        let Some(pd) = apd.get_mut(&ship.owner) else {
+        let Some(pd) = self.player_data.get(&ship.owner) else {
             return Err(Errcode::NoFuelInCargo);
         };
+        let mut pd = pd.write().await;
         let Some(qty) = pd.cargo.resources.get(&Resource::Fuel) else {
             return Err(Errcode::NoFuelInCargo);
         };
@@ -245,7 +239,8 @@ impl Station {
         debug_assert!(ship.fuel_tank >= 0.0);
         debug_assert!(ship.fuel_tank_capacity >= ship.fuel_tank);
         let needed = ship.fuel_tank_capacity - ship.fuel_tank;
-        let unloaded = pd.cargo.unload(&Resource::Fuel, needed.min(*qty));
+        let unload = needed.min(*qty);
+        let unloaded = pd.cargo.unload(&Resource::Fuel, unload);
         ship.fuel_tank += unloaded;
         debug_assert!(ship.fuel_tank_capacity >= ship.fuel_tank);
         Ok(unloaded)
@@ -255,10 +250,10 @@ impl Station {
         if self.position != ship.position {
             return Err(Errcode::ShipNotInStation);
         }
-        let mut apd = self.player_data.write().await;
-        let Some(pd) = apd.get_mut(&ship.owner) else {
+        let Some(pd) = self.player_data.get(&ship.owner) else {
             return Err(Errcode::NoHullPlateInCargo);
         };
+        let mut pd = pd.write().await;
         let Some(qty) = pd.cargo.resources.get(&Resource::HullPlate) else {
             return Err(Errcode::NoHullPlateInCargo);
         };
@@ -291,11 +286,11 @@ impl Station {
     }
 
     pub async fn get_cargo_potential_price(&self, id: &PlayerId) -> f64 {
-        let apd = self.player_data.read().await;
-        let Some(pd) = apd.get(id) else {
+        let Some(pd) = self.player_data.get(id) else {
             return 0.0;
         };
-        pd.cargo
+        pd.read().await
+            .cargo
             .resources
             .iter()
             .map(|(r, amnt)| r.base_price() * amnt)
@@ -304,8 +299,7 @@ impl Station {
 
     pub async fn add_resource(&mut self, id: &PlayerId, resource: &Resource, amnt: f64) -> f64 {
         self.ensure_has_player_data(id).await;
-        let mut apd = self.player_data.write().await;
-        let pd = apd.get_mut(id).unwrap();
+        let mut pd = self.player_data.get(id).unwrap().write().await;
         pd.cargo.add_resource(resource, amnt)
     }
 
@@ -323,20 +317,17 @@ impl Station {
         ship
     }
 
-    pub async fn ensure_has_player_data(&self, id: &PlayerId) {
-        let apd = self.player_data.read().await;
-        if !apd.contains_key(id) {
-            drop(apd);
-            let mut apd = self.player_data.write().await;
-            apd.insert(*id, StationPlayerData::new());
+    pub async fn ensure_has_player_data(&mut self, id: &PlayerId) {
+        if !self.player_data.contains_key(id) {
+            self.player_data.insert(*id, RwLock::new(StationPlayerData::new()));
         }
     }
 
     pub async fn sum_all_wages(&self, id: &PlayerId) -> f64 {
-        let apd = self.player_data.read().await;
-        let Some(pd) = apd.get(id) else {
+        let Some(pd) = self.player_data.get(id) else {
             return 0.0;
         };
+        let pd = pd.read().await;
         pd.crew.sum_wages() + pd.idle_crew.sum_wages()
     }
 
@@ -346,10 +337,10 @@ impl Station {
         money: &mut f64,
         crew: &CrewId,
     ) -> Result<(f64, u8), Errcode> {
-        let mut apd = self.player_data.write().await;
-        let Some(pd) = apd.get_mut(id) else {
+        let Some(pd) = self.player_data.get(id) else {
             return Err(Errcode::CrewMemberNotFound(*crew));
         };
+        let mut pd = pd.write().await;
 
         let Some(cm) = pd.crew.0.get_mut(crew) else {
             return Err(Errcode::CrewMemberNotFound(*crew));
@@ -364,40 +355,42 @@ impl Station {
     }
 
     pub async fn to_json(&self, id: &PlayerId) -> serde_json::Value {
-        let apd = self.player_data.read().await;
-        let pd = if let Some(pdr) = apd.get(id) {
-            pdr
+        if let Some(pd) = self.player_data.get(id) {
+            let pd = pd.read().await;
+            self._to_json(&pd)
         } else {
-            &StationPlayerData::new()
-        };
+            let pd = StationPlayerData::new();
+            self._to_json(&pd)
+        }
+    }
 
+    fn _to_json(&self, data: &StationPlayerData) -> serde_json::Value {
         serde_json::json!({
             "id": self.id,
             "position": self.position,
-            "crew": pd.crew,
-            "cargo": pd.cargo,
-            "idle_crew": pd.idle_crew,
-            "trader": pd.trader,
+            "crew": data.crew,
+            "cargo": data.cargo,
+            "idle_crew": data.idle_crew,
+            "trader": data.trader,
         })
     }
 
-    pub async fn hire_crew(&self, id: &PlayerId, crewtype: CrewMemberType) -> CrewId {
+    pub async fn hire_crew(&mut self, id: &PlayerId, crewtype: CrewMemberType) -> CrewId {
         let mut rng = rand::rng();
         let crewid = rng.random();
         let member = CrewMember::from(crewtype);
 
         self.ensure_has_player_data(id).await;
-        let mut apd = self.player_data.write().await;
-        let pd = apd.get_mut(id).unwrap();
+        let mut pd = self.player_data.get(id).unwrap().write().await;
         pd.idle_crew.0.insert(crewid, member);
         crewid
     }
 
     pub async fn upgr_trader_price(&self, id: &PlayerId) -> Option<f64> {
-        let apd = self.player_data.read().await;
-        let Some(pd) = apd.get(id) else {
+        let Some(pd) = self.player_data.get(id) else {
             return None;
         };
+        let pd = pd.read().await;
         pd.trader.map(|trader| {
             let cm = pd.crew.0.get(&trader).unwrap();
             cm.price_next_rank()
@@ -405,19 +398,17 @@ impl Station {
     }
 
     pub async fn clone_cargo(&self, id: &PlayerId) -> ShipCargo {
-        let apd = self.player_data.read().await;
-        if let Some(pd) = apd.get(id) {
-            pd.cargo.clone()
-        } else {
-            ShipCargo::with_capacity(STATION_INIT_CARGO)
-        }
+        let Some(pd) = self.player_data.get(id) else {
+            return ShipCargo::with_capacity(STATION_INIT_CARGO);
+        };
+        pd.read().await.cargo.clone()
     }
 
     pub async fn get_fee_rate(&self, id: &PlayerId) -> Result<f64, Errcode> {
-        let apd = self.player_data.read().await;
-        let Some(pd) = apd.get(id) else {
+        let Some(pd) = self.player_data.get(id) else {
             return Err(Errcode::NoTraderAssigned);
         };
+        let pd = pd.read().await;
         let Some(trader) = pd.trader else {
             return Err(Errcode::NoTraderAssigned);
         };
