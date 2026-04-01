@@ -46,9 +46,3 @@ async fn main() -> std::io::Result<()> {
     gamethread.await.unwrap();
     res
 }
-
-#[cfg(feature = "heavy_testing")]
-#[test]
-fn test_heavy_testing() {
-    assert!(false);
-}

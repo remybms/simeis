@@ -366,9 +366,3 @@ fn test_compute_sector() {
         )
     );
 }
-
-#[cfg(feature = "heavy_testing")]
-#[test]
-fn test_heavy_testing() {
-    assert!(false);
-}
