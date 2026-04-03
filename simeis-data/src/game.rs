@@ -72,7 +72,6 @@ impl Game {
 
         let thread_data = data.clone();
         // TODO Reduce stack size from this task, > 1024
-        // TODO DEV FIXME    Requires a `move` somewhere here
         let thread = compio::runtime::spawn((async move || {
             thread_data.start(recv_stop, sysrecv).await
         })());

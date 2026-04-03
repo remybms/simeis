@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-# TODO FIXME Fails after num player > 50
-#     Num open files too high, up to 125, maybe this
-
 if [ $# -ne 1 ]; then
     echo "Usage: $0 <num players>"
     exit 1

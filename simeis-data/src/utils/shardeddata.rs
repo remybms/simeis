@@ -71,14 +71,14 @@ impl ShardDataKey for u16 {
 }
 
 impl ShardDataKey for (u32, u32, u32) {
-    fn get_shard_idx(&self, totcap: usize) -> usize {
+    fn get_shard_idx(&self, _totcap: usize) -> usize {
         // TODO
         todo!()
     }
 }
 
 impl ShardDataKey for u32 {
-    fn get_shard_idx(&self, totcap: usize) -> usize {
+    fn get_shard_idx(&self, _totcap: usize) -> usize {
         // TODO
         todo!()
     }
