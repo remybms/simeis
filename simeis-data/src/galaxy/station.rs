@@ -170,7 +170,7 @@ impl Station {
         resource: &Resource,
         amnt: f64,
         player: &mut Player,
-        market: &mut Market,
+        market: &Market,
     ) -> Result<MarketTx, Errcode> {
         self.ensure_has_player_data(&player.id).await;
         let mut pd = self.player_data.get(&player.id).unwrap().write().await;
@@ -184,7 +184,7 @@ impl Station {
             return Err(Errcode::BuyNothing);
         }
 
-        let tx = market.buy(cm, resource, amnt);
+        let tx = market.buy(cm, resource, amnt).await;
         player.money -= tx.removed_money.unwrap();
         player.score -= tx.removed_money.unwrap();
         let (r, a) = tx.added_cargo.unwrap();
@@ -197,7 +197,7 @@ impl Station {
         resource: &Resource,
         amnt: f64,
         player: &mut Player,
-        market: &mut Market,
+        market: &Market,
     ) -> Result<MarketTx, Errcode> {
         self.ensure_has_player_data(&player.id).await;
         let mut pd = self.player_data.get(&player.id).unwrap().write().await;
@@ -213,7 +213,7 @@ impl Station {
             return Err(Errcode::SellNothing);
         }
 
-        let tx = market.sell(cm, resource, amnt);
+        let tx = market.sell(cm, resource, amnt).await;
         player.money += tx.added_money.unwrap();
         player.score += tx.added_money.unwrap();
         let (r, a) = tx.removed_cargo.unwrap();
@@ -354,27 +354,6 @@ impl Station {
         Ok((price, cm.rank))
     }
 
-    pub async fn to_json(&self, id: &PlayerId) -> serde_json::Value {
-        if let Some(pd) = self.player_data.get(id) {
-            let pd = pd.read().await;
-            self._to_json(&pd)
-        } else {
-            let pd = StationPlayerData::new();
-            self._to_json(&pd)
-        }
-    }
-
-    fn _to_json(&self, data: &StationPlayerData) -> serde_json::Value {
-        serde_json::json!({
-            "id": self.id,
-            "position": self.position,
-            "crew": data.crew,
-            "cargo": data.cargo,
-            "idle_crew": data.idle_crew,
-            "trader": data.trader,
-        })
-    }
-
     pub async fn hire_crew(&mut self, id: &PlayerId, crewtype: CrewMemberType) -> CrewId {
         let mut rng = rand::rng();
         let crewid = rng.random();
@@ -414,5 +393,26 @@ impl Station {
         };
         let cm = pd.crew.0.get(&trader).unwrap();
         Ok(fee_rate(cm.rank))
+    }
+
+    pub async fn to_json(&self, id: &PlayerId) -> serde_json::Value {
+        if let Some(pd) = self.player_data.get(id) {
+            let pd = pd.read().await;
+            self._to_json(&pd)
+        } else {
+            let pd = StationPlayerData::new();
+            self._to_json(&pd)
+        }
+    }
+
+    fn _to_json(&self, data: &StationPlayerData) -> serde_json::Value {
+        serde_json::json!({
+            "id": self.id,
+            "position": self.position,
+            "crew": data.crew,
+            "cargo": data.cargo,
+            "idle_crew": data.idle_crew,
+            "trader": data.trader,
+        })
     }
 }

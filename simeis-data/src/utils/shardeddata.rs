@@ -1,4 +1,5 @@
 use std::{collections::BTreeMap, sync::Arc};
+use std::hash::Hasher;
 
 use mea::rwlock::RwLock;
 
@@ -6,13 +7,12 @@ pub trait ShardDataKey: Ord + Clone {
     fn get_shard_idx(&self, totcap: usize) -> usize;
 }
 
-#[derive(Clone)]
 pub struct ShardedLockedData<K, T> {
     shards: Vec<Arc<RwLock<BTreeMap<K, T>>>>,
 
 }
 
-impl<K: ShardDataKey, T: Clone> ShardedLockedData<K, T> {
+impl<K: ShardDataKey, T> ShardedLockedData<K, T> {
     pub fn new(cap: usize) -> ShardedLockedData<K, T> {
         let mut shards = vec![];
         for _ in 0..cap {
@@ -38,11 +38,6 @@ impl<K: ShardDataKey, T: Clone> ShardedLockedData<K, T> {
         shard.write().await.remove(key)
     }
 
-    pub async fn clone_val(&self, key: &K) -> Option<T> {
-        let shard = self.get_shard(key);
-        shard.write().await.get(key).cloned()
-    }
-
     pub async fn map<F, V>(&self, key: &K, f: F) -> Option<V>
     where
         F: FnOnce(&mut T) -> V,
@@ -60,6 +55,13 @@ impl<K: ShardDataKey, T: Clone> ShardedLockedData<K, T> {
         }
         result.sort();
         result
+    }
+}
+
+impl<K: ShardDataKey, T: Clone> ShardedLockedData<K, T> {
+    pub async fn clone_val(&self, key: &K) -> Option<T> {
+        let shard = self.get_shard(key);
+        shard.write().await.get(key).cloned()
     }
 }
 
@@ -81,5 +83,15 @@ impl ShardDataKey for u32 {
     fn get_shard_idx(&self, _totcap: usize) -> usize {
         // TODO
         todo!()
+    }
+}
+
+impl ShardDataKey for crate::player::PlayerKey {
+    fn get_shard_idx(&self, totcap: usize) -> usize {
+        let mut h = std::hash::DefaultHasher::new();
+        h.write(self);
+        let n= h.finish() as usize;
+        let sep = (usize::MAX as usize) / totcap;
+        n / sep
     }
 }

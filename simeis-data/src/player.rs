@@ -1,14 +1,15 @@
 use std::collections::hash_map::DefaultHasher;
 use std::collections::BTreeMap;
 use std::hash::Hasher;
+use std::sync::Arc;
 use std::time::Instant;
 
+use mea::rwlock::RwLock;
 use rand::Rng;
 
 use crate::crew::CrewId;
 use crate::errors::Errcode;
 use crate::galaxy::station::{Station, StationId};
-use crate::galaxy::{Galaxy, SpaceCoord};
 use crate::ship::module::{ShipModuleId, ShipModuleType};
 use crate::ship::upgrade::ShipUpgrade;
 use crate::ship::{Ship, ShipId};
@@ -31,12 +32,12 @@ pub struct Player {
     pub money: f64,
     pub costs: f64,
 
-    pub stations: BTreeMap<StationId, SpaceCoord>,
+    pub stations: BTreeMap<StationId, Arc<RwLock<Station>>>,
     pub ships: BTreeMap<ShipId, Ship>,
 }
 
 impl Player {
-    pub fn new(station: (StationId, SpaceCoord), name: String) -> Player {
+    pub fn new(station: (StationId, Arc<RwLock<Station>>), name: String) -> Player {
         let mut hasher = DefaultHasher::new();
         hasher.write(name.as_bytes());
         let mut rng = rand::rng();
@@ -69,14 +70,10 @@ impl Player {
     }
 
     // SAFETY Will deadlock if a &mut station exists when this is called
-    pub async fn update_costs(&mut self, galaxy: &Galaxy) {
+    pub async fn update_costs(&mut self) {
         self.costs = 0.0;
-        let mut stations = vec![];
-        for coord in self.stations.values() {
-            stations.push(galaxy.get_station(coord).await.unwrap());
-        }
 
-        for station in stations {
+        for station in self.stations.values() {
             // Deadlock because of this
             let station = station.read().await;
             self.costs += station.sum_all_wages(&self.id).await;
@@ -131,7 +128,7 @@ impl Player {
         Ok(ship_id)
     }
 
-    pub fn buy_ship_module(
+    pub async fn buy_ship_module(
         &mut self,
         station_id: &StationId,
         ship_id: &ShipId,
@@ -140,12 +137,13 @@ impl Player {
         let Some(station) = self.stations.get(station_id) else {
             return Err(Errcode::NoSuchStation(*station_id));
         };
+        let station = station.read().await;
 
         let Some(ship) = self.ships.get_mut(ship_id) else {
             return Err(Errcode::ShipNotFound(*ship_id));
         };
 
-        if station != &ship.position {
+        if station.position != ship.position {
             return Err(Errcode::ShipNotInStation);
         }
 
@@ -243,5 +241,17 @@ impl Player {
         station
             .upgrade_station_crew(&self.id, &mut self.money, crew_id)
             .await
+    }
+
+    pub async fn find_station<F>(&self, f: F) -> Option<StationId>
+        where F: Fn(&Station) -> bool,
+    {
+        for (id, station) in self.stations.iter() {
+            let station = station.read().await;
+            if f(&station) {
+                return Some(*id);
+            }
+        }
+        None
     }
 }

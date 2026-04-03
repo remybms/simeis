@@ -1,5 +1,4 @@
 #![allow(clippy::type_complexity)]
-use std::collections::BTreeMap;
 use std::sync::Arc;
 use mea::mutex::Mutex;
 use mea::rwlock::RwLock;
@@ -10,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use strum::IntoStaticStr;
 
 use crate::player::PlayerId;
+use crate::utils::ShardedLockedData;
 
 const SYSLOG_FIFO_MAX_SIZE: usize = 10;
 
@@ -77,7 +77,7 @@ pub struct SyslogSend {
 
 impl SyslogSend {
     pub fn channel() -> (SyslogSend, SyslogRecv) {
-        let (sender, recv) = mea::mpsc::bounded(100);
+        let (sender, recv) = mea::mpsc::bounded(1000);
         let tstart = std::time::Instant::now();
         let syslogsend = SyslogSend { sender, tstart };
         (syslogsend, SyslogRecv::init(recv, tstart))
@@ -89,7 +89,7 @@ impl SyslogSend {
     }
 }
 
-pub type SyslogFifo = Arc<RwLock<BTreeMap<PlayerId, Arc<RwLock<Fifo<(f64, SyslogEvent)>>>>>>;
+pub type SyslogFifo = Arc<RwLock<ShardedLockedData<PlayerId, Arc<RwLock<Fifo<(f64, SyslogEvent)>>>>>>;
 
 pub struct SyslogRecv {
     recv: Mutex<BoundedReceiver<SyslogData>>,
@@ -102,7 +102,7 @@ impl SyslogRecv {
         SyslogRecv {
             recv: Mutex::new(recv),
             tstart,
-            fifo: Arc::new(RwLock::new(BTreeMap::new())),
+            fifo: Arc::new(RwLock::new(ShardedLockedData::new(100))),
         }
     }
 
@@ -127,22 +127,17 @@ impl SyslogRecv {
 
     async fn add_to_fifo(&self, id: PlayerId, ns: f64, evt: SyslogEvent) {
         log::debug!("Player {id} got event {evt:?}");
-        let ok = {
-            let sysfifo = self.fifo.read().await;
-            if let Some(fifo) = sysfifo.get(&id) {
-                let mut player_fifo = fifo.write().await;
-                player_fifo.push((ns, evt.clone()));
-                true
-            } else {
-                false
-            }
+        let sysfifo = self.fifo.read().await;
+        let (reqadd, fifo) = if let Some(fifo) = sysfifo.clone_val(&id).await {
+            (false, fifo)
+        } else {
+            (true, Arc::new(RwLock::new(Fifo::new())))
         };
-
-        if !ok {
-            let mut fifo = Fifo::new();
-            fifo.push((ns, evt));
-            let mut sysfifo = self.fifo.write().await;
-            sysfifo.insert(id, Arc::new(RwLock::new(fifo)));
+        let mut player_fifo = fifo.write().await;
+        player_fifo.push((ns, evt));
+        drop(sysfifo);
+        if reqadd {
+            self.fifo.write().await.insert(id, fifo.clone()).await;
         }
     }
 }

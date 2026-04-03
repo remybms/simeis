@@ -1,3 +1,4 @@
+use mea::rwlock::RwLock;
 use rand::{Rng, RngExt};
 use rand_distr::{Distribution, Normal};
 use serde::{Deserialize, Serialize};
@@ -24,18 +25,28 @@ pub fn fee_rate(rank: u8) -> f64 {
     BASE_FEE_RATE / (rank as f64).powf(FEE_RATE_DEC_POWF)
 }
 
-#[derive(Serialize)]
 pub struct Market {
-    pub prices: BTreeMap<Resource, f64>,
+    pub prices: BTreeMap<Resource, RwLock<f64>>,
 }
 
 impl Market {
     pub fn init() -> Market {
         let mut prices = BTreeMap::new();
         for r in Resource::iter() {
-            prices.insert(r, r.base_price());
+            prices.insert(r, RwLock::new(r.base_price()));
         }
         Market { prices }
+    }
+
+    pub async fn to_json(&self) -> serde_json::Value {
+        let mut resources = BTreeMap::new();
+        for (res, price) in self.prices.iter() {
+            let tstart = std::time::Instant::now();
+            let price = price.read().await;
+            log::debug!("Got price read for {res:?} in {:?}", tstart.elapsed());
+            resources.insert(res, *price);
+        }
+        serde_json::to_value(resources).unwrap()
     }
 
     fn rand_distrib(&self, r: &Resource, now_price: f64) -> Normal<f64> {
@@ -55,30 +66,27 @@ impl Market {
         old * (1.0 + change)
     }
 
-    pub fn update_prices<R: Rng>(&mut self, rng: &mut R) {
-        let mut new_prices = vec![];
+    pub async fn update_prices<R: Rng>(&self, rng: &mut R) {
         for (res, price) in self.prices.iter() {
             if !rng.random_bool(UPD_PRICE_PROBA) {
                 continue;
             }
+            let mut price = price.write().await;
 
-            new_prices.push((*res, self.get_new_price(rng, res, *price)));
-        }
-
-        for (r, price) in new_prices {
-            let p = self.prices.get_mut(&r).unwrap();
-            log::trace!("{r:?} {price} ({:?}%)", (price / r.base_price()) * 100.0);
-            *p = price;
+            let new_price = self.get_new_price(rng, res, *price);
+            log::trace!("{res:?} {new_price} ({:?}%)", (new_price / res.base_price()) * 100.0);
+            *price = new_price;
         }
     }
 
-    pub fn buy(&mut self, trader: &CrewMember, r: &Resource, amnt: f64) -> MarketTx {
+    pub async fn buy(&self, trader: &CrewMember, r: &Resource, amnt: f64) -> MarketTx {
         assert!(amnt > 0.0);
         let fee_rate = fee_rate(trader.rank);
 
-        let price = *self.prices.get(r).unwrap();
-        assert!(price > 0.0);
-        let cost = amnt * price;
+        let price = self.prices.get(r).unwrap();
+        let price = price.read().await;
+        assert!(*price > 0.0);
+        let cost = amnt * *price;
         let fees = cost * fee_rate;
 
         // TODO (#15) Fixup influence on market price
@@ -96,13 +104,14 @@ impl Market {
         }
     }
 
-    pub fn sell(&mut self, trader: &CrewMember, r: &Resource, amnt: f64) -> MarketTx {
+    pub async fn sell(&self, trader: &CrewMember, r: &Resource, amnt: f64) -> MarketTx {
         assert!(amnt > 0.0);
         let fee_rate = fee_rate(trader.rank);
 
-        let price = *self.prices.get(r).unwrap();
-        assert!(price > 0.0);
-        let cost = amnt * price;
+        let price = self.prices.get(r).unwrap();
+        let price = price.read().await;
+        assert!(*price > 0.0);
+        let cost = amnt * *price;
         let fees = cost * fee_rate;
 
         // TODO (#15) Fixup influence on market price

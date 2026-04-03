@@ -43,15 +43,16 @@ def get(path):
     qry = f"{URL}/{path}"
     while True:
         try:
-            reply = urllib.request.urlopen(qry, timeout=5)
+            reply = urllib.request.urlopen(qry, timeout=10)
             break
-        except:
+        except Exception as err:
             os.system("clear")
             HIST = {}
             INIT=False
             # breakpoint()
             print("DEAD SERVER")
-            time.sleep(1)
+            print(err)
+            time.sleep(4)
             continue
 
     data = json.loads(reply.read().decode())

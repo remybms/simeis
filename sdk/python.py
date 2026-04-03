@@ -36,7 +36,7 @@ class SimeisSDK:
             ])
 
         qry = f"{self.url}{path}{tail}"
-        reply = urllib.request.urlopen(qry, timeout=5)
+        reply = urllib.request.urlopen(qry, timeout=15)
 
         data = json.loads(reply.read().decode())
         err = data.pop("error")

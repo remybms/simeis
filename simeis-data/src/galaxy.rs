@@ -14,6 +14,8 @@ pub mod station;
 use scan::ScanResult;
 use station::StationId;
 
+use crate::galaxy::station::Station;
+
 pub type SpaceUnit = u32;
 pub type SpaceCoord = (SpaceUnit, SpaceUnit, SpaceUnit);
 type GalaxySector = (
@@ -29,7 +31,7 @@ const STATION_FPLANET_DIST: f64 = 500.0;
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum SpaceObject {
-    BaseStation(Arc<RwLock<station::Station>>),
+    BaseStation(StationId, Arc<RwLock<station::Station>>),
     Planet(Arc<planet::Planet>),
 }
 
@@ -121,7 +123,7 @@ impl Galaxy {
 
     pub async fn get_station(&self, coord: &SpaceCoord) -> Option<Arc<RwLock<station::Station>>> {
         let obj = self.get(coord)?;
-        let SpaceObject::BaseStation(station) = obj else {
+        let SpaceObject::BaseStation(_, station) = obj else {
             return None;
         };
         Some(station.clone())
@@ -136,7 +138,7 @@ impl Galaxy {
     }
 
     // TODO (#6) Generate based on the galaxy
-    pub async fn init_new_station(&mut self) -> (StationId, SpaceCoord) {
+    pub async fn init_new_station(&mut self) -> (StationId, Arc<RwLock<Station>>) {
         let mut rng = rand::rng();
 
         let mut seccoord = (rng.random(), rng.random(), rng.random());
@@ -197,9 +199,9 @@ impl Galaxy {
             }
         }
         let station = Arc::new(RwLock::new(station::Station::init(id, coord)));
-        self.insert(&coord, SpaceObject::BaseStation(station))
+        self.insert(&coord, SpaceObject::BaseStation(id, station.clone()))
             .unwrap();
-        (id, coord)
+        (id, station)
     }
 
     pub async fn scan_sector(&self, rank: u8, center: &SpaceCoord) -> ScanResult {

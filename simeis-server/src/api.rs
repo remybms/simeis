@@ -1,4 +1,5 @@
 // Mutex acquisition order
+// - Taken names
 // - Player index
 // - Player list
 // - Player
@@ -8,10 +9,10 @@
 // - SyslogFifo
 // - PlayerFifo
 
-use std::collections::BTreeMap;
-use std::ops::DerefMut;
 use std::str::FromStr;
+use std::ops::DerefMut;
 use std::time::Instant;
+use std::collections::BTreeMap;
 
 use base64::{prelude::BASE64_STANDARD, Engine};
 use serde_json::{json, to_value, Value};
@@ -45,11 +46,10 @@ macro_rules! get_player {
         let Some(key) = get_player_key(&$req) else {
             return build_response(Err(Errcode::NoPlayerKey));
         };
-        let index = $srv.player_index.read().await;
-        let Some(id) = index.get(&key) else {
+        let Some(id) = $srv.player_index.clone_val(&key).await else {
             return build_response(Err(Errcode::NoPlayerWithKey));
         };
-        let player = $srv.players.clone_val(id).await.unwrap();
+        let player = $srv.players.clone_val(&id).await.unwrap();
         if player.read().await.lost {
             return build_response(Err(Errcode::PlayerLost));
         }
@@ -60,35 +60,17 @@ macro_rules! get_player {
 macro_rules! get_station {
     ($srv:expr, $player:expr, $id:expr) => {{
         let player = $player.read().await;
-        let Some(station_coord) = player.stations.get($id).cloned() else {
+        let Some(station) = player.stations.get($id).cloned() else {
             return build_response(Err(Errcode::NoSuchStation(*$id)));
         };
-        drop(player);
-        $srv.galaxy
-            .read()
-            .await
-            .get_station(&station_coord)
-            .await
-            .unwrap()
+        station
     }};
 
     ($srv:expr, $id:expr; $player:expr) => {{
-        let Some(station_coord) = $player.stations.get($id).cloned() else {
+        let Some(station) = $player.stations.get($id).cloned() else {
             return build_response(Err(Errcode::NoSuchStation(*$id)));
         };
-        $srv.galaxy
-            .read()
-            .await
-            .get_station(&station_coord)
-            .await
-            .unwrap()
-    }};
-
-    ($srv:expr, $id:expr; $player:expr; $galaxy:expr) => {{
-        let Some(station_coord) = $player.stations.get($id).cloned() else {
-            return build_response(Err(Errcode::NoSuchStation(*$id)));
-        };
-        $galaxy.get_station(&station_coord).await.unwrap()
+        station
     }};
 }
 
@@ -146,11 +128,9 @@ async fn get_syslogs(srv: GameState, req: HttpRequest) -> impl web::Responder {
     let player = get_player!(srv, req);
     let pid = player.read().await.id;
     let allfifo = srv.fifo_events.read().await;
-    let Some(fifo) = allfifo.get(&pid) else {
+    let Some(fifo) = allfifo.clone_val(&pid).await else {
         return build_response(Ok(json!({"nb": 0, "events": []})));
     };
-    let fifo = fifo.clone();
-    drop(allfifo);
     let mut fifo = fifo.write().await;
     let all_ev = fifo.remove_all();
     let res = all_ev
@@ -171,10 +151,9 @@ async fn get_syslogs(srv: GameState, req: HttpRequest) -> impl web::Responder {
 #[web::get("/player/new/{name}")]
 async fn new_player(srv: GameState, name: Path<String>) -> impl web::Responder {
     let name = name.to_string();
-    for pid in srv.players.get_all_keys().await {
-        let player = srv.players.clone_val(&pid).await.unwrap();
-        if name == player.read().await.name {
-            return build_response(Err(Errcode::PlayerAlreadyExists(pid, name)));
+    for pname in srv.taken_names.read().await.iter() {
+        if &name == pname {
+            return build_response(Err(Errcode::PlayerAlreadyExists(name)));
         }
     }
 
@@ -201,21 +180,26 @@ async fn get_player(srv: GameState, id: Path<PlayerId>, req: HttpRequest) -> imp
     let player = player.read().await;
 
     let res = if player.key == key {
+        let mut stations = BTreeMap::new();
+        for (id, station) in player.stations.iter() {
+            let station = station.read().await;
+            stations.insert(id, station.to_json(&id).await);
+        }
+        let ships = serde_json::to_value(
+            player.ships.values().collect::<Vec<&Ship>>()
+        ).unwrap();
         Ok(json!({
             "id": id,
             "name": player.name,
-            "stations": player.stations,
+            "stations": stations,
             "money": player.money,
-            "ships": serde_json::to_value(
-                player.ships.values().collect::<Vec<&Ship>>()
-            ).unwrap(),
+            "ships": ships,
             "costs": player.costs,
         }))
     } else {
         Ok(json!({
             "id": id,
             "name": player.name,
-            "stations": player.stations,
         }))
     };
     build_response(res)
@@ -292,8 +276,8 @@ async fn shipyard_list_upgrades(
 ) -> impl web::Responder {
     let (station_id, ship_id) = args.as_ref();
     let player = get_player!(srv, req);
-    let station = get_station!(srv, player, station_id);
     let player = player.read().await;
+    let station = get_station!(srv, station_id; player);
     let station = station.read().await;
 
     let Some(ship) = player.ships.get(ship_id) else {
@@ -352,12 +336,11 @@ async fn hire_crew(
 
     let player = get_player!(srv, req);
     let mut player = player.write().await;
-    let galaxy = srv.galaxy.read().await;
-    let station = get_station!(srv, station_id; player; galaxy);
+    let station = get_station!(srv, station_id; player);
     let mut station = station.write().await;
     let id = station.hire_crew(&player.id, crewtype).await;
     drop(station);
-    player.update_costs(&galaxy).await;
+    player.update_costs().await;
     build_response(Ok(serde_json::json!({ "id": id })))
 }
 
@@ -408,13 +391,12 @@ async fn upgrade_ship_crew(
 
     let player = get_player!(srv, req);
     let mut player = player.write().await;
-    let galaxy = srv.galaxy.read().await;
-    let station = get_station!(srv, station_id; player; galaxy);
+    let station = get_station!(srv, station_id; player);
     let station = station.read().await;
 
     let res = player.upgrade_ship_crew(&station, ship_id, crew_id);
     if res.is_ok() {
-        player.update_costs(&galaxy).await;
+        player.update_costs().await;
     }
     build_response(res.map(|(p, r)| json!({ "new-rank": r, "cost": p})))
 }
@@ -429,8 +411,7 @@ async fn upgrade_station_crew(
     let (station_id, crew_id) = args.as_ref();
     let player = get_player!(srv, req);
     let mut player = player.write().await;
-    let galaxy = srv.galaxy.read().await;
-    let station = get_station!(srv, station_id; player; galaxy);
+    let station = get_station!(srv, station_id; player);
     let mut station = station.write().await;
 
     let res = player
@@ -438,7 +419,7 @@ async fn upgrade_station_crew(
         .await;
     if res.is_ok() {
         drop(station);
-        player.update_costs(&galaxy).await;
+        player.update_costs().await;
     }
     build_response(res.map(|(p, r)| json!({ "new-rank": r, "cost": p })))
 }
@@ -514,7 +495,7 @@ async fn scan(id: Path<StationId>, srv: GameState, req: HttpRequest) -> impl web
 
     let galaxy = srv.galaxy.read().await;
 
-    let station = get_station!(srv, id.as_ref(); player; galaxy);
+    let station = get_station!(srv, id.as_ref(); player);
     let station = station.read().await;
 
     let results = station.scan(&galaxy).await;
@@ -559,6 +540,7 @@ async fn buy_ship_module(
     build_response(
         player
             .buy_ship_module(station_id, ship_id, modtype)
+            .await
             .map(|v| {
                 json!({
                     "id": v,
@@ -839,11 +821,11 @@ async fn unload_ship_cargo(
         return build_response(Err(Errcode::ShipNotFound(*id)));
     };
 
-    let Some(station) = player.stations.iter().find(|(_, s)| *s == &ship.position) else {
+    let Some(station) = player.find_station(|s| s.position == ship.position).await else {
         return build_response(Err(Errcode::ShipNotInStation));
     };
 
-    let station = get_station!(srv, station.0; player);
+    let station = get_station!(srv, &station; player);
     let mut station = station.write().await;
 
     let pid = player.id;
@@ -869,8 +851,10 @@ async fn unload_ship_cargo(
 // Get prices of each resources on the market
 #[web::get("/market/prices")]
 async fn get_market_prices(srv: GameState) -> impl web::Responder {
-    let market = srv.market.read().await;
-    let res = to_value(&market.prices).unwrap();
+    log::debug!("Ask market prices");
+    let tstart = std::time::Instant::now();
+    let res = srv.market.to_json().await;
+    log::debug!("Replied in {:?}", tstart.elapsed());
     build_response(Ok(res))
 }
 
@@ -892,9 +876,8 @@ async fn buy_resource(
     let station = get_station!(srv, station_id; player);
     let mut station = station.write().await;
 
-    let mut market = srv.market.write().await;
     let res = station
-        .buy_resource(&resource, *amnt, player.deref_mut(), market.deref_mut())
+        .buy_resource(&resource, *amnt, player.deref_mut(), &srv.market)
         .await;
     build_response(res.map(|tx| to_value(tx).unwrap()))
 }
@@ -917,9 +900,8 @@ async fn sell_resource(
     let station = get_station!(srv, station_id; player);
     let mut station = station.write().await;
 
-    let mut market = srv.market.write().await;
     let res = station
-        .sell_resource(&resource, *amnt, player.deref_mut(), market.deref_mut())
+        .sell_resource(&resource, *amnt, player.deref_mut(), &srv.market)
         .await;
     build_response(res.map(|tx| to_value(tx).unwrap()))
 }
@@ -996,28 +978,25 @@ async fn resources_info() -> impl web::Responder {
 async fn gamestats(srv: GameState) -> impl web::Responder {
     let mut data = BTreeMap::new();
     let all_players = srv.players.get_all_keys().await;
-    let mut players = vec![];
-    for id in all_players.iter() {
-        let player = srv.players.clone_val(&id).await.unwrap();
-        players.push((id, player));
-    }
-
-    for (id, p) in players {
-        let player = p.read().await;
-        let galaxy = srv.galaxy.read().await;
+    let mut all_stations = BTreeMap::new();
+    for pid in all_players {
+        let tstart = std::time::Instant::now();
+        let player = srv.players.clone_val(&pid).await.unwrap();
+        let player = player.read().await;
         let potential = {
             let mut s = 0.0;
-            for (_, coord) in player.stations.iter() {
-                let sta = galaxy.get_station(coord).await.unwrap();
-                let station = sta.read().await;
-                s += station.get_cargo_potential_price(&id).await;
+            for (sid, station) in player.stations.iter() {
+                let station = station.read().await;
+                let sjson = station.to_json(&pid).await;
+                all_stations.insert(*sid, sjson);
+                s += station.get_cargo_potential_price(&pid).await;
             }
             s
         };
 
         let age = (Instant::now() - player.created).as_secs();
         data.insert(
-            id,
+            pid,
             json!({
                 "name": player.name,
                 "score": player.score,
@@ -1025,9 +1004,10 @@ async fn gamestats(srv: GameState) -> impl web::Responder {
                 "age": age,
                 "lost": player.lost,
                 "money": player.money,
-                "stations": player.stations,
+                "stations": all_stations,
             }),
         );
+        log::debug!("Got data for {} in {:?}", player.name, tstart.elapsed());
     }
     build_response(Ok(to_value(data).unwrap()))
 }

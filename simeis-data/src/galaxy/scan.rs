@@ -22,7 +22,7 @@ impl ScanResult {
 
     pub async fn add(&mut self, rank: u8, obj: &SpaceObject) {
         match obj {
-            SpaceObject::BaseStation(station) => {
+            SpaceObject::BaseStation(_, station) => {
                 let station = station.read().await;
                 self.stations.push(StationInfo::scan(rank, station.deref()));
             }

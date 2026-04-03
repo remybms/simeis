@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -12,8 +11,8 @@ use base64::{prelude::BASE64_STANDARD, Engine};
 use rand::{Rng, RngExt};
 
 use crate::errors::Errcode;
-use crate::galaxy::station::StationId;
-use crate::galaxy::{Galaxy, SpaceCoord};
+use crate::galaxy::station::{Station, StationId};
+use crate::galaxy::Galaxy;
 use crate::market::{Market, MARKET_CHANGE_SEC};
 use crate::player::{Player, PlayerId, PlayerKey};
 use crate::ship::ShipState;
@@ -36,15 +35,16 @@ pub enum GameSignal {
 
 #[derive(Clone)]
 pub struct Game {
-    pub players: ShardedLockedData<PlayerId, Arc<RwLock<Player>>>,
-    pub player_index: Arc<RwLock<HashMap<PlayerKey, PlayerId>>>,
+    pub players: Arc<ShardedLockedData<PlayerId, Arc<RwLock<Player>>>>,
+    pub taken_names: Arc<RwLock<Vec<String>>>,
+    pub player_index: Arc<ShardedLockedData<PlayerKey, PlayerId>>,
     pub galaxy: Arc<RwLock<Galaxy>>,
-    pub market: Arc<RwLock<Market>>,
+    pub market: Arc<Market>,
     pub syslog: SyslogSend,
     pub fifo_events: SyslogFifo,
     pub tstart: f64,
     pub send_sig: BoundedSender<GameSignal>,
-    pub init_station: (StationId, SpaceCoord),
+    pub init_station: (StationId, Arc<RwLock<Station>>),
 }
 
 impl Game {
@@ -60,9 +60,10 @@ impl Game {
         let data = Game {
             send_sig: send_stop,
             galaxy: Arc::new(RwLock::new(galaxy)),
-            market: Arc::new(RwLock::new(Market::init())),
-            players: ShardedLockedData::new(20),
-            player_index: Arc::new(RwLock::new(HashMap::new())),
+            market: Arc::new(Market::init()),
+            taken_names: Arc::new(RwLock::new(vec![])),
+            players: Arc::new(ShardedLockedData::new(100)),
+            player_index: Arc::new(ShardedLockedData::new(100)),
             syslog: syssend.clone(),
             fifo_events: sysrecv.fifo.clone(),
             tstart,
@@ -173,7 +174,7 @@ impl Game {
 
         if rng.random_bool(market_change_proba) {
             #[cfg(not(feature = "testing"))]
-            self.market.write().await.update_prices(rng);
+            self.market.update_prices(rng).await;
             *mlt = Instant::now();
         }
 
@@ -181,13 +182,13 @@ impl Game {
     }
 
     pub async fn new_player(&self, name: String) -> Result<(PlayerId, String), Errcode> {
-        let mut index = self.player_index.write().await;
+        self.taken_names.write().await.push(name.clone());
 
-        let player = Player::new(self.init_station, name);
+        let player = Player::new(self.init_station.clone(), name);
         let pid = player.id;
         let key = BASE64_STANDARD.encode(player.key);
 
-        index.insert(player.key, player.id);
+        self.player_index.insert(player.key, player.id).await;
         self.players.insert(player.id, Arc::new(RwLock::new(player))).await;
         self.syslog.event(&pid, SyslogEvent::GameStarted).await;
         Ok((pid, key))
