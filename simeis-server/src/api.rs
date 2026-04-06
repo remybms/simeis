@@ -110,7 +110,7 @@ async fn get_syslogs(srv: GameState, req: HttpRequest) -> impl web::Responder {
 }
 
 // Creates a new player in the game
-#[web::get("/player/new/{name}")]
+#[web::post("/player/new/{name}")]
 async fn new_player(srv: GameState, name: Path<String>) -> impl web::Responder {
     let name = name.to_string();
     let res = srv.new_player(name).await.map(|(id, key)| json!({
@@ -180,7 +180,7 @@ async fn list_shipyard_ships(
 }
 
 // Buy a ship from the station's shop
-#[web::get("/station/{station_id}/shipyard/buy/{id}")]
+#[web::post("/station/{station_id}/shipyard/buy/{id}")]
 async fn shipyard_buy_ship(
     srv: GameState,
     args: Path<(StationId, ShipId)>,
@@ -233,8 +233,9 @@ async fn shipyard_list_upgrades(
     build_response(data)
 }
 
+// TODO POST body contains the specific upgrade to apply
 // Buy an upgrade and install it on a ship
-#[web::get("/station/{station_id}/shipyard/upgrade/{ship_id}/{upgrade_type}")]
+#[web::post("/station/{station_id}/shipyard/upgrade/{ship_id}/{upgrade_type}")]
 async fn shipyard_buy_upgrade(
     srv: GameState,
     args: Path<(StationId, ShipId, String)>,
@@ -259,7 +260,7 @@ async fn shipyard_buy_upgrade(
 }
 
 // Hire a new crew member on the station. Unless assigned, it will stay idle
-#[web::get("/station/{station_id}/crew/hire/{crewtype}")]
+#[web::post("/station/{station_id}/crew/hire/{crewtype}")]
 async fn hire_crew(
     srv: GameState,
     args: Path<(StationId, String)>,
@@ -327,7 +328,7 @@ async fn get_crew_upgrades(
 }
 
 // Upgrade a crew member of a specific ship
-#[web::get("/station/{station_id}/crew/upgrade/ship/{ship_id}/{crew_id}")]
+#[web::post("/station/{station_id}/crew/upgrade/ship/{ship_id}/{crew_id}")]
 async fn upgrade_ship_crew(
     srv: GameState,
     args: Path<(StationId, ShipId, CrewId)>,
@@ -356,7 +357,7 @@ async fn upgrade_ship_crew(
 }
 
 // Upgrade a crew member of the station
-#[web::get("/station/{station_id}/crew/upgrade/{crew_id}")]
+#[web::post("/station/{station_id}/crew/upgrade/{crew_id}")]
 async fn upgrade_station_crew(
     args: Path<(StationId, CrewId)>,
     srv: GameState,
@@ -380,7 +381,7 @@ async fn upgrade_station_crew(
 
 // TODO (#14) Make this URL generic: work for any role on the station
 // Assign a crew member as a trader on a station. The level of the trader will affect the fee rate applied on the market
-#[web::get("/station/{station_id}/crew/assign/{crewid}/trading")]
+#[web::post("/station/{station_id}/crew/assign/{crewid}/trading")]
 async fn assign_trader(
     args: Path<(StationId, CrewId)>,
     srv: GameState,
@@ -401,7 +402,7 @@ async fn assign_trader(
 }
 
 // Assign a crew member as a pilot on a ship. The level of the pilot will affect the speed of the ship, as well as it's fuel consumption
-#[web::get("/station/{station_id}/crew/assign/{crewid}/{shipid}/pilot")]
+#[web::post("/station/{station_id}/crew/assign/{crewid}/{shipid}/pilot")]
 async fn assign_pilot(
     args: Path<(StationId, CrewId, ShipId)>,
     srv: GameState,
@@ -427,7 +428,7 @@ async fn assign_pilot(
 }
 
 // Assign a crew member as an operator on a ship. The level of the crew member will affect the extraction rate of the resources
-#[web::get("/station/{station_id}/crew/assign/{crewid}/{shipid}/{modid}")]
+#[web::post("/station/{station_id}/crew/assign/{crewid}/{shipid}/{modid}")]
 async fn assign_operator(
     args: Path<(StationId, CrewId, ShipId, ShipModuleId)>,
     srv: GameState,
@@ -488,7 +489,7 @@ async fn get_prices_ship_module(
 }
 
 // Buy a ship module and install it on a ship
-#[web::get("/station/{station_id}/shop/modules/{ship_id}/buy/{modtype}")]
+#[web::post("/station/{station_id}/shop/modules/{ship_id}/buy/{modtype}")]
 async fn buy_ship_module(
     srv: GameState,
     args: Path<(StationId, ShipId, String)>,
@@ -545,7 +546,7 @@ async fn get_ship_module_upgrade_prices(
 }
 
 // Buy an upgrade for a module installed on a ship, the level of a module will affect the extraction rate for a resource, as well as what kind of resources it kind mine.
-#[web::get("/station/{station_id}/shop/modules/{ship_id}/upgrade/{modid}")]
+#[web::post("/station/{station_id}/shop/modules/{ship_id}/upgrade/{modid}")]
 async fn buy_ship_module_upgrade(
     srv: GameState,
     args: Path<(StationId, ShipId, ShipModuleId)>,
@@ -568,7 +569,7 @@ async fn buy_ship_module_upgrade(
 }
 
 // Buy a storage expansion for the station
-#[web::get("/station/{station_id}/shop/cargo/buy/{amount}")]
+#[web::post("/station/{station_id}/shop/cargo/buy/{amount}")]
 async fn buy_station_cargo(
     srv: GameState,
     args: Path<(StationId, usize)>,
@@ -616,7 +617,7 @@ async fn get_station_upgrades(
 }
 
 // Use fuel in storage on the station to refuel the ship
-#[web::get("/station/{station_id}/refuel/{ship_id}")]
+#[web::post("/station/{station_id}/refuel/{ship_id}")]
 async fn refuel_ship(
     srv: GameState,
     args: Path<(StationId, ShipId)>,
@@ -639,7 +640,7 @@ async fn refuel_ship(
 }
 
 // Use the hull plates in storage on the station to repair the ship
-#[web::get("/station/{station_id}/repair/{ship_id}")]
+#[web::post("/station/{station_id}/repair/{ship_id}")]
 async fn repair_ship(
     srv: GameState,
     args: Path<(StationId, ShipId)>,
@@ -698,7 +699,7 @@ async fn compute_travel_costs(
 }
 
 // Navigate to position (X, Y, Z), ship will have the state InFlight during the travel
-#[web::get("/ship/{ship_id}/navigate/{x}/{y}/{z}")]
+#[web::post("/ship/{ship_id}/navigate/{x}/{y}/{z}")]
 async fn ask_navigate(
     srv: GameState,
     args: Path<(ShipId, SpaceUnit, SpaceUnit, SpaceUnit)>,
@@ -718,7 +719,7 @@ async fn ask_navigate(
 }
 
 // Stop the naviguation, ship will become Idle, and stay in place
-#[web::get("/ship/{ship_id}/navigation/stop")]
+#[web::post("/ship/{ship_id}/navigation/stop")]
 async fn stop_navigation(
     srv: GameState,
     args: Path<ShipId>,
@@ -735,7 +736,7 @@ async fn stop_navigation(
 }
 
 // Start the extraction of resources on the planet, ship will have the state "Extracting" until its cargo is full
-#[web::get("/ship/{ship_id}/extraction/start")]
+#[web::post("/ship/{ship_id}/extraction/start")]
 async fn start_extraction(
     srv: GameState,
     id: Path<ShipId>,
@@ -751,7 +752,7 @@ async fn start_extraction(
 }
 
 // Stop the extraction of resources on the planet
-#[web::get("/ship/{ship_id}/extraction/stop")]
+#[web::post("/ship/{ship_id}/extraction/stop")]
 async fn stop_extraction(
     srv: GameState,
     id: Path<ShipId>,
@@ -771,7 +772,7 @@ async fn stop_extraction(
 }
 
 // Unload a specific amount of a specific resource on the station's storage
-#[web::get("/ship/{ship_id}/unload/{station_id}/{resource}/{amount}")]
+#[web::post("/ship/{ship_id}/unload/{station_id}/{resource}/{amount}")]
 async fn unload_ship_cargo(
     srv: GameState,
     args: Path<(ShipId, StationId, String, f64)>,
@@ -817,7 +818,7 @@ async fn get_market_prices(srv: GameState) -> impl web::Responder {
 }
 
 // Buy a specific resource on the market
-#[web::get("/market/{station_id}/buy/{resource}/{amnt}")]
+#[web::post("/market/{station_id}/buy/{resource}/{amnt}")]
 async fn buy_resource(
     srv: GameState,
     args: Path<(StationId, String, f64)>,
@@ -836,7 +837,7 @@ async fn buy_resource(
 }
 
 // Sell a specific resource on the market
-#[web::get("/market/{station_id}/sell/{resource}/{amnt}")]
+#[web::post("/market/{station_id}/sell/{resource}/{amnt}")]
 async fn sell_resource(
     srv: GameState,
     args: Path<(StationId, String, f64)>,
@@ -875,7 +876,7 @@ async fn get_fee_rate(
 
 #[cfg(feature = "testing")]
 // Make the server tick a single time
-#[web::get("/tick")]
+#[web::post("/tick")]
 async fn tick_server(srv: GameState) -> impl web::Responder {
     let Ok(_) = srv.send_sig.send(simeis_data::game::GameSignal::Tick).await else {
         return build_response(Err(Errcode::GameSignalSend));
@@ -885,7 +886,7 @@ async fn tick_server(srv: GameState) -> impl web::Responder {
 
 #[cfg(feature = "testing")]
 // Make the server tick N times
-#[web::get("/tick/{n}")]
+#[web::post("/tick/{n}")]
 async fn tick_server_n(srv: GameState, n: Path<usize>) -> impl web::Responder {
     let n = n.as_ref().clone();
     for _ in 0..n {
