@@ -99,11 +99,7 @@ impl Station {
         CARGO_BASE_PRICE.powf((cap - STATION_INIT_CARGO) / CARGO_PRICE_INCDIV)
     }
 
-    pub async fn buy_cargo(
-        &self,
-        player: &mut Player,
-        amnt: &usize,
-    ) -> Result<ShipCargo, Errcode> {
+    pub async fn buy_cargo(&self, player: &mut Player, amnt: &usize) -> Result<ShipCargo, Errcode> {
         let cost = (*amnt as f64) * self.cargo_price(&player.id).await;
         if cost > player.money {
             return Err(Errcode::NotEnoughMoney(player.money, cost));
@@ -126,7 +122,7 @@ impl Station {
 
     pub async fn assign_trader(&self, pid: &PlayerId, id: CrewId) -> Result<(), Errcode> {
         self.ensure_has_player_data(pid).await;
-        let pd = self.player_data.clone_val(&pid).await.unwrap();
+        let pd = self.player_data.clone_val(pid).await.unwrap();
         let mut pd = pd.write().await;
         let Some(cm) = pd.idle_crew.0.remove(&id) else {
             return Err(Errcode::CrewMemberNotIdle(id));
@@ -319,8 +315,7 @@ impl Station {
             return 0.0;
         };
         let pd = pd.read().await;
-        pd
-            .cargo
+        pd.cargo
             .resources
             .iter()
             .map(|(r, amnt)| r.base_price() * amnt)

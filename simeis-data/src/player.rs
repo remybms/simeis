@@ -78,11 +78,7 @@ impl Player {
     }
 
     #[inline]
-    pub fn ship_in_station(
-        &self,
-        ship: &ShipId,
-        station: &StationId,
-    ) -> Result<bool, Errcode> {
+    pub fn ship_in_station(&self, ship: &ShipId, station: &StationId) -> Result<bool, Errcode> {
         let ship = self.get_ship(ship)?;
         let Some(station) = self.stations.get(station) else {
             return Err(Errcode::NoSuchStation(*station));

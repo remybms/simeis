@@ -197,29 +197,21 @@ impl Game {
     }
 
     pub async fn new_player(&self, name: String) -> Result<(PlayerId, String), Errcode> {
-        log::debug!("ADD {name} START");
-        let tstart = std::time::Instant::now();
         if self.taken_names.contains_key(&name).await {
             return Err(Errcode::PlayerAlreadyExists(name));
         }
-        log::debug!("ADD {name} Checked if exist {:?}", tstart.elapsed());
 
         let player = Player::new(self.init_station.clone(), name.clone());
         let pid = player.id;
         self.taken_names.insert(name.clone(), pid).await;
-        log::debug!("ADD {name} Created player, added to exist list {:?}", tstart.elapsed());
 
         let key = BASE64_STANDARD.encode(player.key);
-        log::debug!("ADD {name} Create station, encode key {:?}", tstart.elapsed());
 
         self.player_index.insert(player.key, player.id).await;
-        log::debug!("ADD {name} added to player index {:?}", tstart.elapsed());
         self.players
             .insert(player.id, Arc::new(RwLock::new(player)))
             .await;
-        log::debug!("ADD {name} added to players btreemap {:?}", tstart.elapsed());
         self.syslog.event(&pid, SyslogEvent::GameStarted).await;
-        log::debug!("ADD {name} END -- Sent syslog {:?}", tstart.elapsed());
         Ok((pid, key))
     }
 
@@ -261,7 +253,7 @@ impl Game {
         let Some(station) = player.stations.get(id) else {
             return Err(Errcode::NoSuchStation(*id));
         };
-        let data = f(&pid, &station).await;
+        let data = f(&pid, station).await;
         data
     }
 
@@ -310,7 +302,7 @@ impl Game {
         // SAFETY Checked in function above
         let ship = player.ships.get(ship_id).unwrap();
         let station = player.stations.get(station_id).unwrap();
-        let data = f(pid, &station, ship).await;
+        let data = f(pid, station, ship).await;
         data
     }
 
@@ -322,11 +314,7 @@ impl Game {
         f: F,
     ) -> Result<T, Errcode>
     where
-        F: for<'a> FnOnce(
-            PlayerId,
-            &'a Station,
-            &'a mut Ship,
-        ) -> BoxFuture<'a, Result<T, Errcode>>,
+        F: for<'a> FnOnce(PlayerId, &'a Station, &'a mut Ship) -> BoxFuture<'a, Result<T, Errcode>>,
     {
         let (pid, player) = self.get_player(pkey).await?;
         let mut player = player.write().await;
@@ -365,24 +353,12 @@ impl Game {
         pkey: &PlayerKey,
         id: &PlayerId,
     ) -> Result<serde_json::Value, Errcode> {
-        let tstart = std::time::Instant::now();
-        log::debug!("GET_PLAYER {id} START");
         let (pid, player) = self.get_player(pkey).await?;
-        log::debug!("GET_PLAYER {id} got rwlock {:?}", tstart.elapsed());
         let player = player.read().await;
-        log::debug!("GET_PLAYER {id} read rwlock {:?}", tstart.elapsed());
         if pid == *id {
             let stations = player.stations.keys().cloned().collect::<Vec<StationId>>();
-            // let mut stations = BTreeMap::new();
-            // for (id, station) in player.stations.iter() {
-            //     let station = station.read().await;
-            //     log::debug!("GET_PLAYER {id} read station {id} {:?}", tstart.elapsed());
-            //     stations.insert(id, station.to_json(id).await);
-            // }
-            log::debug!("GET_PLAYER {id} stations finished {:?}", tstart.elapsed());
             let ships =
                 serde_json::to_value(player.ships.values().collect::<Vec<&Ship>>()).unwrap();
-            log::debug!("GET_PLAYER {id} ships got {:?}", tstart.elapsed());
             Ok(serde_json::json!({
                 "id": id,
                 "name": player.name,
@@ -392,7 +368,6 @@ impl Game {
                 "costs": player.costs,
             }))
         } else {
-            log::debug!("GET_PLAYER {id} short data {:?}", tstart.elapsed());
             Ok(serde_json::json!({
                 "id": id,
                 "name": player.name,
