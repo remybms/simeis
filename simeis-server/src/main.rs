@@ -30,10 +30,6 @@ async fn main() -> std::io::Result<()> {
     let (gamethread, state) = Game::init().await;
     let stop_chan = state.send_sig.clone();
 
-    // TODO FIXME Quand worker > 1, et beaucoup de players, je finir par avoir un deadlock
-    //     Possiblement dû au register de nouveau joueurs
-    //     Quand je fais le bigtest avec 1 seconde entre chaque, tout va bien
-    //     Problème dans l'accession aux stations, peut-être du à l'Arc dans le player
     let res = web::HttpServer::new(async move || {
         let game_state = state.clone();
         web::App::new()
@@ -42,11 +38,9 @@ async fn main() -> std::io::Result<()> {
             .configure(api::configure)
     })
     .workers(64)
-    // .workers(1)
     .bind(("0.0.0.0", port))?
     .run()
     .await;
-    // 530 OK
 
     log::info!("Server stopped, stopping game thread");
     stop_chan.send(GameSignal::Stop).await.unwrap();
