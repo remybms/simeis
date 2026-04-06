@@ -1,6 +1,7 @@
 #[derive(Debug)]
 pub enum Errcode {
     NoPlayerKey,
+    InvalidPlayerKey,
     PlayerNotFound(crate::player::PlayerId),
     PlayerAlreadyExists(String),
     NoPlayerWithKey,
@@ -35,6 +36,7 @@ impl Errcode {
     pub fn errmsg(&self) -> String {
         match self {
             Errcode::NoPlayerKey => "No player key provided with the request".to_string(),
+            Errcode::InvalidPlayerKey => "The provided player key isn't valid".to_string(),
             Errcode::PlayerNotFound(id) => format!("No player was found with this ID: {id}"),
             Errcode::PlayerAlreadyExists(name) => format!("Player {name} already exists"),
             Errcode::NoPlayerWithKey => "No player with this key exists in this game".to_string(),

@@ -24,6 +24,8 @@ use crate::GameState;
 
 pub type ApiResult = Result<Value, Errcode>;
 
+// TODO use score from ntext to build paths
+
 // TODO (#14) Use POST queries also, instead of everything with GET
 
 // TODO (#14) Use query parameters (with ntex::web::types::Query) instead of plain URLs
@@ -32,26 +34,18 @@ pub type ApiResult = Result<Value, Errcode>;
 macro_rules! get_player_key {
     ($req:ident) => {
         'getk: {
-            for q in $req.query_string().split("&") {
-                if q.starts_with("key=") {
-                    let Some(key) = q.split("=").nth(1) else {
-                        continue;
-                    };
-                    let Some(deckey) = urlencoding::decode(key).ok() else {
-                        continue;
-                    };
-                    let mut key = [0; 128];
-                    if !BASE64_STANDARD
-                        .decode_slice(deckey.as_ref(), &mut key)
-                        .ok()
-                        .is_some()
-                    {
-                        continue;
-                    };
-                    break 'getk key;
-                }
-            }
-            return build_response(Err(Errcode::NoPlayerKey));
+            let Some(b64key) = $req.headers().get("Simeis-Key") else {
+                return build_response(Err(Errcode::NoPlayerKey));
+            };
+            let mut key = [0; 128];
+            if !BASE64_STANDARD
+                .decode_slice(b64key, &mut key)
+                .ok()
+                .is_some()
+            {
+                return build_response(Err(Errcode::InvalidPlayerKey));
+            };
+            break 'getk key;
         }
     };
 }
