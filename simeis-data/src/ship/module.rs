@@ -29,6 +29,7 @@ pub type ShipModuleId = u16;
 pub enum ShipModuleType {
     Miner,
     GasSucker,
+    Pump,
 }
 
 impl ShipModuleType {
@@ -44,7 +45,9 @@ impl ShipModuleType {
     #[inline]
     pub fn get_price_buy(&self) -> f64 {
         match self {
-            ShipModuleType::Miner | ShipModuleType::GasSucker => 4500.0,
+            ShipModuleType::Miner
+            | ShipModuleType::Pump
+            | ShipModuleType::GasSucker => 4500.0,
         }
     }
 }
@@ -67,7 +70,9 @@ impl ShipModule {
     // Returns
     pub fn need(&self, ctype: &CrewMemberType) -> bool {
         match self.modtype {
-            ShipModuleType::Miner | ShipModuleType::GasSucker => {
+            ShipModuleType::Miner
+            | ShipModuleType::Pump
+            | ShipModuleType::GasSucker => {
                 ctype == &CrewMemberType::Operator && self.operator.is_none()
             }
         }
@@ -91,6 +96,10 @@ impl ShipModule {
                 .collect(),
             ShipModuleType::GasSucker => all_resources
                 .filter(|(r, _)| r.suckable(cm.rank))
+                .map(|(r, density)| (r, self.extraction_rate(&r, cm.rank, density)))
+                .collect(),
+            ShipModuleType::Pump => all_resources
+                .filter(|(r, _)| r.pumpable(cm.rank))
                 .map(|(r, density)| (r, self.extraction_rate(&r, cm.rank, density)))
                 .collect(),
         }

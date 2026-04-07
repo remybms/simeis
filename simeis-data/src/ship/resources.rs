@@ -23,11 +23,17 @@ use super::{cargo::ShipCargo, Ship};
 )]
 #[strum(ascii_case_insensitive)]
 pub enum Resource {
-    // Solid or liquid
+    // Solid
     Stone,
     Iron,
     Copper,
     Gold,
+
+    // Liquid
+    Water,
+    Alcohol,
+    Oil,
+    SulfuricAcid,
 
     // Gaseous
     Hydrogen,
@@ -50,10 +56,10 @@ impl Resource {
     pub const fn base_price(&self) -> f64 {
         let base = 4.0;
         match self {
-            Resource::Stone | Resource::Hydrogen => base,
-            Resource::Iron | Resource::Oxygen => 4.0 * base,
-            Resource::Copper | Resource::Helium => 12.0 * base,
-            Resource::Gold | Resource::Ozone => 16.0 * base,
+            Resource::Stone | Resource::Hydrogen | Resource::Water => base,
+            Resource::Iron | Resource::Oxygen | Resource::Alcohol => 4.0 * base,
+            Resource::Copper | Resource::Helium | Resource::Oil => 12.0 * base,
+            Resource::Gold | Resource::Ozone | Resource::SulfuricAcid => 16.0 * base,
             Resource::Fuel => base / 2.0,
             Resource::HullPlate => base / 3.0,
         }
@@ -61,10 +67,10 @@ impl Resource {
 
     pub fn volume(&self) -> f64 {
         match self {
-            Resource::Stone | Resource::Hydrogen => 0.75,
-            Resource::Iron | Resource::Oxygen => 2.5,
-            Resource::Copper | Resource::Helium => 3.0,
-            Resource::Gold | Resource::Ozone => 0.25,
+            Resource::Stone | Resource::Hydrogen | Resource::Water => 0.75,
+            Resource::Iron | Resource::Oxygen | Resource::Alcohol => 2.5,
+            Resource::Copper | Resource::Helium | Resource::Oil => 3.0,
+            Resource::Gold | Resource::Ozone | Resource::SulfuricAcid => 0.25,
             Resource::Fuel => 2.0,
             Resource::HullPlate => 0.05,
         }
@@ -91,10 +97,10 @@ impl Resource {
 
     pub fn min_rank(&self) -> u8 {
         match self {
-            Resource::Stone | Resource::Hydrogen => 0,
-            Resource::Iron | Resource::Oxygen => 2,
-            Resource::Copper | Resource::Helium => 4,
-            Resource::Gold | Resource::Ozone => 6,
+            Resource::Stone | Resource::Hydrogen | Resource::Water => 0,
+            Resource::Iron | Resource::Oxygen | Resource::Alcohol => 2,
+            Resource::Copper | Resource::Helium | Resource::Oil => 4,
+            Resource::Gold | Resource::Ozone | Resource::SulfuricAcid => 6,
             Resource::Fuel | Resource::HullPlate => 0,
         }
     }
@@ -111,6 +117,15 @@ impl Resource {
     pub fn suckable(&self, rank: u8) -> bool {
         match self {
             Resource::Hydrogen | Resource::Oxygen | Resource::Helium | Resource::Ozone => {
+                rank > self.min_rank()
+            }
+            _ => false,
+        }
+    }
+
+    pub fn pumpable(&self, rank: u8) -> bool {
+        match self {
+            Resource::Water | Resource::Alcohol | Resource::Oil | Resource::SulfuricAcid => {
                 rank > self.min_rank()
             }
             _ => false,

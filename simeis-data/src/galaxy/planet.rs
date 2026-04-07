@@ -27,7 +27,7 @@ impl PlanetInfo {
 pub struct Planet {
     pub position: SpaceCoord,
     temperature: u16,
-    solid: bool,
+    solid: bool, // TODO (#5) Remove
 }
 
 impl Planet {
@@ -45,6 +45,8 @@ impl Planet {
         if self.solid && resource.mineable(u8::MAX) {
             6.25
         } else if !self.solid && resource.suckable(u8::MAX) {
+            6.25
+        } else if resource.suckable(u8::MAX) {
             6.25
         } else {
             0.0
