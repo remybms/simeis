@@ -6,6 +6,8 @@ IGNORED_LINES =[("TO" + "DO"), "FIXME"]
 import os
 import json
 
+# TODO (#37) from the `market::configure` part, generate a "section"
+# Allow to have subsections in the manual
 with open("../simeis-server/src/api.rs", "r") as f:
     code = f.read().split("\n")
 

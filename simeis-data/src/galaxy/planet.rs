@@ -27,7 +27,7 @@ impl PlanetInfo {
 pub struct Planet {
     pub position: SpaceCoord,
     temperature: u16,
-    solid: bool, // TODO (#5) Remove
+    solid: bool, // TODO (#25) Remove
 }
 
 impl Planet {
@@ -39,7 +39,7 @@ impl Planet {
         }
     }
 
-    // TODO (#5) Make this depend on the conditions, temperature, etc...
+    // TODO (#25) Make this depend on the conditions, temperature, etc...
     #[allow(clippy::if_same_then_else)]
     pub fn resource_density(&self, resource: &Resource) -> f64 {
         if self.solid && resource.mineable(u8::MAX) {

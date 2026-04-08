@@ -26,7 +26,6 @@ pub const STATION_INIT_CARGO: f64 = 1000.0;
 
 pub type StationId = u16;
 
-// TODO (#7) Add refineries to create fuel & hull from raw resources
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StationInfo {
     pub id: StationId,

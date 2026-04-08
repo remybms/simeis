@@ -33,10 +33,10 @@ pub enum SpaceObject {
     Planet(Arc<planet::Planet>),
 }
 
-// TODO Use a RwLock on each of the field, and remove the one from the Game struct
+// TODO (#31) Use a RwLock on each of the field, and remove the one from the Game struct
 pub struct Galaxy {
     objects: BTreeMap<SpaceCoord, SpaceObject>,
-    discovered: Vec<GalaxySector>, // TODO (#6) Index by sector ID in a BTreeMap
+    discovered: Vec<GalaxySector>, // TODO (#31) Index by sector ID in a BTreeMap
 }
 
 impl Galaxy {
@@ -136,7 +136,7 @@ impl Galaxy {
         Some(planet.clone())
     }
 
-    // TODO (#6) Generate based on the galaxy
+    // TODO (#31) Generate based on the galaxy
     pub async fn init_new_station(&mut self) -> (StationId, Arc<Station>) {
         let mut rng = rand::rng();
 
@@ -239,7 +239,7 @@ pub fn get_direction(a: &SpaceCoord, b: &SpaceCoord) -> (f64, f64, f64) {
     (delta.0 / distance, delta.1 / distance, delta.2 / distance)
 }
 
-// TODO (#6)   Unit tests on this one
+// TODO (#13)   Unit tests on this one
 fn compute_sector(x: SpaceUnit, y: SpaceUnit, z: SpaceUnit) -> GalaxySector {
     let start_x = x - (x % SECTOR_SIZE.0);
     let end_x = start_x.saturating_add(SECTOR_SIZE.0);

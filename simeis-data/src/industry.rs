@@ -76,6 +76,7 @@ impl IndustryUnitType {
     }
 
     #[inline]
+    // TODO (#9) Move price based on inflation rate of the station
     pub fn get_price_buy(&self) -> f64 {
         8000.0
     }

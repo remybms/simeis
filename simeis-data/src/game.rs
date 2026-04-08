@@ -91,7 +91,7 @@ impl Game {
             rt.block_on(thread_data.start(recv_stop, sysrecv));
             rt.run();
         });
-        // TODO Reduce stack size from this task, > 1024
+        // TODO (#34) Reduce stack size from this task, > 1024
         (thread, data)
     }
 
