@@ -28,7 +28,7 @@
           exit 1;
         fi
 
-        if ! python3 .forgejo/functests.py 127.0.0.1 9345; then
+        if ! python3 .forgejo/functests.py 127.0.0.1 9345 "$@"; then
           echo "Some tests failed"
           kill "$(jobs -p)"
 
