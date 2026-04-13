@@ -1,4 +1,5 @@
 import sys
+import time
 from sdk import SimeisSDK
 
 class Game:
@@ -44,7 +45,7 @@ class Game:
         # On retourne à la station, on vide tout, avant de repartir
         else:
             ship = status["ships"][0]
-            self.sdk.return_station_and_unload(sta, ship["id"])
+            self.sdk.return_station_and_unload_all(sta, ship["id"])
 
         # Cycle infini
         #     On va à la planète
@@ -66,7 +67,8 @@ class Game:
 
             # On mine
             prices = self.sdk.get_market_prices()
-            stats = self.sdk.mine(ship["id"])
+            info = self.sdk.start_extraction(ship["id"])
+            stats = info["mining_rate"]
             totpersec = 0
             for res, amnt in stats.items():
                 print(f"{res}: {amnt} /sec")
@@ -75,10 +77,11 @@ class Game:
 
             # On attends que l'extraction termine
             # Elle se termine automatiquement quand le cargo est plein
+            time.sleep(info["time_fill_cargo"])
             self.sdk.wait_until_ship_idle(ship["id"])
 
             # On retourne à la station, et on décharge le cargo
-            self.sdk.return_station_and_unload(sta, ship["id"])
+            self.sdk.return_station_and_unload_all(sta, ship["id"])
 
             # On vends tout
             cycletot = 0
@@ -96,7 +99,7 @@ class Game:
             self.sdk.refuel_ship(sta, ship["id"])
 
             # On achète des plaques de coque, et on répare la coque
-            got = self.sdk.buy_plates_for_repair(sta, ship["id"])
+            got = self.sdk.buy_hull_for_repair(sta, ship["id"])
             cycletot -= got["removed_money"]
             print("Bought", got["added_cargo"], "of Hull for", got["removed_money"], "credits (fees", got["fees"], "credits)")
             self.sdk.repair_ship(sta, ship["id"])

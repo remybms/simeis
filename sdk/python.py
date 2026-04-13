@@ -215,27 +215,17 @@ class SimeisSDK:
             key=lambda pla: get_dist(station["position"], pla["position"])
         )
 
-    def mine(self, ship_id):
+    def start_extraction(self, ship_id):
         return self.post(f"/ship/{ship_id}/extraction/start")
 
     # TODO (#33) Unload
     # TODO (#33) Unload_all
-    # TODO (#33) Rename to return_station_and_unload_all
-    def return_station_and_unload(self, sta, ship_id):
+    def return_station_and_unload_all(self, sta, ship_id):
         ship = self.get(f"/ship/{ship_id}")
         station = self.get(f"/station/{sta}")
-
         if ship["position"] != station["position"]:
             self.travel(ship["id"], station["position"])
-
-        result = []
-        for res, amnt in ship["cargo"]["resources"].items():
-            assert amnt > 0.0
-            if amnt == 0.0:
-                continue
-            result.append(self.post(f"/ship/{ship_id}/unload/{sta}/{res}/{amnt}"))
-
-        return result
+        return self.post(f"/ship/{ship_id}/unload/{sta}/all")
 
     def get_station_resources(self, sta):
         return self.get(f"/station/{sta}")["cargo"]["resources"]

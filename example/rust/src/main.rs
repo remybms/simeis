@@ -71,7 +71,7 @@ impl Game {
         else {
             ship = all_my_ships.first().unwrap();
             ship_id = get_id(ship);
-            self.sdk.return_station_and_unload(station_id, ship_id)?;
+            self.sdk.return_station_and_unload_all(station_id, ship_id)?;
         }
 
         // Cycle infini
@@ -100,11 +100,13 @@ impl Game {
 
             // On mine
             let prices = self.sdk.get_market_prices()?;
-            let stats = self.sdk.mine(ship_id)?;
+            let info = self.sdk.start_extraction(ship_id)?;
+            let stats = json_get_dict("mining_rate", &info).unwrap();
+            let twait = json_get_float("time_fill_cargo", &info).unwrap();
             let mut totpersec = 0.0;
-            for (res, amnt) in stats.as_object().unwrap().iter() {
+            for (res, amnt) in stats.iter() {
                 let amnt = amnt.as_f64().unwrap();
-                let price = prices.get(res).unwrap();
+                let price = prices.get(res.as_str()).unwrap();
                 println!("{res}: {amnt} /sec");
                 totpersec += amnt * price;
             }
@@ -112,11 +114,12 @@ impl Game {
 
             // On attends que l'extraction termine
             // Elle se termine automatiquement quand le cargo est plein
+            std::thread::sleep(Duration::from_secs_f64(twait));
             self.sdk
-                .wait_until_ship_idle(ship_id, Duration::from_secs(1))?;
+                .wait_until_ship_idle(ship_id, Duration::from_millis(200))?;
 
             // On retourne à la station, et on décharge le cargo
-            self.sdk.return_station_and_unload(station_id, ship_id)?;
+            self.sdk.return_station_and_unload_all(station_id, ship_id)?;
 
             // On vends tout
             let mut cycletot = 0.0;
@@ -154,7 +157,7 @@ impl Game {
             self.sdk.refuel_ship(station_id, ship_id)?;
 
             // On achète des plaques de coque, et on répare la coque
-            if let Some(tx) = self.sdk.buy_plates_for_repair(station_id, ship_id)? {
+            if let Some(tx) = self.sdk.buy_hull_for_repair(station_id, ship_id)? {
                 let removed_money = json_get_float("removed_money", &tx).unwrap();
                 cycletot -= removed_money;
                 let added = json_get_list("added_cargo", &tx)
