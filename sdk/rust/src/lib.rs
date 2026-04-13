@@ -285,7 +285,7 @@ impl SimeisSDK {
         pilot_id: u64,
     ) -> ApiResult {
         self.post(format!(
-            "/station/{station_id}/crew/assign/{pilot_id}/{ship_id}/pilot"
+            "/station/{station_id}/crew/assign/{pilot_id}/ship/{ship_id}/pilot"
         ))
     }
 
@@ -441,26 +441,14 @@ impl SimeisSDK {
     pub fn unload(&self, station_id: u64, ship_id: u64, res: &str, amnt: f64) -> ApiResult {
         self.post(format!("/ship/{ship_id}/unload/{station_id}/{res}/{amnt}"))
     }
-    pub fn unload_all(&self, station_id: u64, ship_id: u64) -> Result<Vec<Value>, Value> {
-        let ship = self.get_ship_status(ship_id)?;
-        let cargo = json_get_dict("cargo.resources", &ship).unwrap();
-        let mut unloaded = vec![];
-        for (res, amnt) in cargo {
-            let amnt = amnt.as_f64().unwrap();
-            assert!(amnt > 0.0);
-            if amnt == 0.0 {
-                continue;
-            }
-            let got = self.unload(station_id, ship_id, res, amnt)?;
-            unloaded.push(got);
-        }
-        Ok(unloaded)
+    pub fn unload_all(&self, station_id: u64, ship_id: u64) -> ApiResult {
+        self.post(format!("/ship/{ship_id}/unload/{station_id}/all"))
     }
     pub fn return_station_and_unload_all(
         &self,
         station_id: u64,
         ship_id: u64,
-    ) -> Result<Vec<Value>, Value> {
+    ) -> ApiResult {
         let ship = self.get_ship_status(ship_id)?;
         let station = self.get_station_status(station_id)?;
 

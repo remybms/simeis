@@ -252,3 +252,4 @@ class SimeisSDK:
     # TODO (#33) get_syslogs
     # TODO (#33) Add resources info
     # TODO (#33) Get ship wages cost
+    # TODO (#33) Industry

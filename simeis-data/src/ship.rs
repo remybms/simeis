@@ -290,6 +290,19 @@ impl Ship {
         rates.update_cargo(&mut self.cargo, tdelta)
     }
 
+    pub async fn unload_all(&mut self, station: &Station) -> Result<BTreeMap<Resource, f64>, Errcode> {
+        let all_resources = self.cargo.resources.clone();
+        let mut unloaded = BTreeMap::new();
+        for (res, amnt) in all_resources {
+            let got = self.unload_cargo(&res, amnt, station).await?;
+            unloaded.insert(res, got);
+            if got < amnt {
+                return Ok(unloaded);
+            }
+        }
+        Ok(unloaded)
+    }
+
     pub async fn unload_cargo(
         &mut self,
         resource: &Resource,

@@ -148,6 +148,30 @@ async fn stop_extraction(
     build_response(data)
 }
 
+// Unload the whole cargo of a ship into a station
+// Returns how much of each resource were unloaded, and if the ship cargo is empty or not
+#[web::post("/unload/{station_id}/all")]
+async fn unload_all_ship_cargo(
+    srv: GameState,
+    args: Path<(ShipId, StationId)>,
+    req: HttpRequest,
+) -> impl web::Responder {
+    let (ship_id, station_id) = args.clone();
+    let pkey = get_player_key!(req);
+    let data = srv
+        .map_ship_mut_in_station(&pkey, &station_id, &ship_id, |_, station, ship| {
+            Box::pin(async move {
+                let unloaded = ship.unload_all(station).await?;
+                Ok(json!({
+                    "unloaded": unloaded,
+                    "emptied": ship.cargo.usage < 0.0000001,
+                }))
+            })
+        })
+        .await;
+    build_response(data)
+}
+
 // Unload a specific amount of a specific resource on the station's storage
 #[web::post("/unload/{station_id}/{resource}/{amount}")]
 async fn unload_ship_cargo(
@@ -197,6 +221,7 @@ pub fn configure<T: IntoPattern>(base: T, srv: &mut ServiceConfig) {
             .service(stop_navigation)
             .service(start_extraction)
             .service(stop_extraction)
-            .service(unload_ship_cargo),
+            .service(unload_all_ship_cargo)
+            .service(unload_ship_cargo)
     );
 }

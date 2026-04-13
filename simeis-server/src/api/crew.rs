@@ -164,7 +164,7 @@ async fn assign_trader(
 }
 
 // Assign a crew member as a pilot on a ship. The level of the pilot will affect the speed of the ship, as well as it's fuel consumption
-#[web::post("/assign/{crewid}/{shipid}/pilot")]
+#[web::post("/assign/{crewid}/ship/{shipid}/pilot")]
 async fn assign_pilot(
     args: Path<(StationId, CrewId, ShipId)>,
     srv: GameState,
