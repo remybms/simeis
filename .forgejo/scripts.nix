@@ -17,6 +17,7 @@
       runtimeInputs = deps ++ [ python ];
       text = ''
         export CARGO_HOME=$PWD/.cargohome
+        export RUST_BACKTRACE=full
         mkdir -p target
         cargo build --target-dir ./target/functests/ --features testing
         rm -f /tmp/simeis_logs
@@ -128,6 +129,7 @@
         runtimeInputs = [ pkgs.ripgrep ];
         text = ''
           export CARGO_HOME=$PWD/.cargohome
+        export RUST_BACKTRACE=full
           mkdir -p target
           cargo build --target-dir ./target/apisanity/ --features testing
           rm -f /tmp/simeis_logs
