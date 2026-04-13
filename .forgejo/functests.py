@@ -918,9 +918,66 @@ class Tester:
     @functest
     def test_industry(self):
         player = self.create_test_player("test-rich-industry")
+        money = self.get_ok(f"/player/{self.id}")["money"]
         sta = self.station
-        list_industry = self.assert_ok(f"/station/{sta}/industry/buy/list")
-        print(list_industry)
+
+        trader = self.post_ok(f"/station/{sta}/crew/hire/trader")
+        traderid = self.assert_got(trader, "id", None)
+        self.post_ok(f"/station/{sta}/crew/assign/{traderid}/trading")
+
+        list_industry = self.get_ok(f"/station/{sta}/industry/buy")
+        self.post_error(f"/station/{sta}/industry/buy/toto", errtype="InvalidArgument(\"industry_type\")")
+        got = self.post_ok(f"/station/{sta}/industry/buy/simplefuelrefinery")
+        new_money = self.get_ok(f"/player/{self.id}")["money"]
+        assert new_money == (money - got["cost"])
+        iid = got["id"]
+
+        got = self.post_ok(f"/station/{sta}/crew/hire/operator")
+        opid = got["id"]
+        self.post_ok(f"/station/{sta}/crew/assign/{opid}/industry/{iid}")
+
+        info = self.get_ok(f"/station/{sta}/industry/production/{iid}")
+
+        for input in self.assert_got(info, "inputs", None):
+            res = input[0]
+            amnt = round(input[1], 5)
+            tx = self.post_ok(f"/market/{sta}/buy/{res}/{amnt}")
+
+        station = self.get_ok(f"/station/{self.station}")
+        cargo = station["cargo"]["resources"]
+        for input in self.assert_got(info, "inputs", None):
+            self.assert_cmpf(cargo[input[0]], input[1])
+
+        self.tick_dur(5)
+
+        station = self.get_ok(f"/station/{self.station}")
+        cargo = station["cargo"]["resources"]
+        for input in self.assert_got(info, "inputs", None):
+            self.assert_cmpf(cargo[input[0]], input[1])
+
+        self.post_error(f"/station/{sta}/industry/start/1", errtype="NoSuchIndustryUnit")
+        self.post_ok(f"/station/{sta}/industry/start/{iid}")
+
+        stop = False
+        while not stop:
+            last = cargo
+            self.tick()
+            station = self.get_ok(f"/station/{self.station}")
+            cargo = station["cargo"]["resources"]
+            min = 100
+            for input in self.assert_got(info, "inputs", None):
+                self.addtrace(input[0], cargo[input[0]], input[1])
+                assert cargo[input[0]] < input[1]
+                if cargo[input[0]] == last[input[0]]:
+                    stop = True
+                    break
+
+        station = self.get_ok(f"/station/{self.station}")
+        cargo = station["cargo"]["resources"]
+        for input in self.assert_got(info, "inputs", None):
+            self.assert_cmpf(cargo[input[0]], 0.0)
+        for output in self.assert_got(info, "outputs", None):
+            self.assert_cmpf(cargo[output[0]], output[1])
 
 def compute_distance(a, b):
     sum = 0
