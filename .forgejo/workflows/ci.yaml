@@ -30,7 +30,7 @@ jobs:
         run: nix run .#unit_tests
 
       - name: "Functional tests"
-        run: nix run .#functional_tests
+        run: nix run .#functional_tests --show-trace -L
 
   code-check:
     runs-on: nix
