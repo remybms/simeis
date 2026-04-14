@@ -6,8 +6,9 @@ edition = "2021"
 [dependencies]
 simeis-data = { path = "../simeis-data" }
 urlencoding = "2.1.3"
-ntex = { version = "3.7.0", features = ["compress", "compio"], default-features = false }
-compio = "*"
+ntex = { version = "3.7.0", features = ["compress"], default-features = false }
+compio = { version = "*", optional = true }
+tokio = { version = "*", features = ["rt-multi-thread"], optional = true }
 
 base64 = { workspace = true }
 log = { workspace = true }
@@ -19,9 +20,13 @@ strum = { workspace = true }
 mea = { workspace = true }
 
 [features]
-default = []
+default = ["compio"]
 testing = ["simeis-data/testing"]
 extraspeed = ["simeis-data/extraspeed"]
+
+# Async runtimes
+compio = [ "ntex/compio", "dep:compio" ]
+tokio = [ "ntex/tokio", "dep:tokio" ]
 
 [profile.release]
 opt-level = 3

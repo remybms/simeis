@@ -41,6 +41,7 @@
       text = ''
         export CARGO_HOME=$PWD/.cargohome
         export RUST_BACKTRACE=full
+        export RUST_LOG=debug
         mkdir -p target
         cargo build --target-dir ./target/functests/ --features testing
         rm -f /tmp/simeis_logs
