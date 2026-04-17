@@ -2,7 +2,7 @@ name: Dependabot
 
 on:
     schedule:
-        - cron: "0 12 * * 1"
+        - cron: "30 11 * * 5"
 
 jobs:
     build:
