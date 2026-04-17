@@ -6,6 +6,7 @@ launch: test
 
 build:
 	cargo build --verbose
+	cargo install typst-cli
 	typst compile doc/manual.typ
 
 test: build
