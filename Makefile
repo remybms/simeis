@@ -5,9 +5,12 @@ launch: test
 	cargo run --release --verbose
 
 build:
-	cargo build --verbose
+	cargo build --release
 	cargo install typst-cli
 	typst compile doc/manual.typ
 
-test: build
+test: build_devmode
 	python tests/propertybased.py
+
+build_devmode:
+	cargo build --verbose
