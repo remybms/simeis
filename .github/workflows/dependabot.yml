@@ -1,0 +1,17 @@
+name: Dependabot
+
+on:
+    schedule:
+        - cron: "0 12 * * 1"
+
+jobs:
+    build:
+        runs-on : ubuntu-latest
+
+        steps:
+        - uses: actions/checkout@v4
+
+        - name: Update depedencies
+          run: |
+            cargo-update
+            gh pr create -t "Update depedencies" -b "Automatic Pull Request" -l "bot/update" || gh pr edit main -l "bot/update"
