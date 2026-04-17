@@ -2,7 +2,6 @@ name: DevMode
 
 on:
   push:
-    branches: [ "*" ]
     branches-ignore: [ "main" ]
 
 jobs:
