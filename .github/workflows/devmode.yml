@@ -3,6 +3,7 @@ name: DevMode
 on:
   push:
     branches: [ "*" ]
+    branches-ignore: [ "main" ]
 
 jobs:
   build:
@@ -12,4 +13,4 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build on check mode and launch the tests
-        run: make tests
+        run: make test
