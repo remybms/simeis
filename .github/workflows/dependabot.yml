@@ -13,5 +13,5 @@ jobs:
 
         - name: Update depedencies
           run: |
-            cargo-update
+            cargo update
             gh pr create -t "Update depedencies" -b "Automatic Pull Request" -l "bot/update" || gh pr edit main -l "bot/update"
