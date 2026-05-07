@@ -1,0 +1,50 @@
+name: Check TODOs
+
+on:
+  pull_request:
+    branches:
+      main
+
+permissions:
+  issues: read
+
+jobs:
+  check-todos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check TODOs
+        run: |
+          #!/bin/bash
+          set -e
+
+          todos=$(grep -r "// TODO" --include=".rs" --include=".py" . || true)
+
+          if [ -z "$todos" ]; then
+            echo "No TODOs found"
+            exit 0
+          fi
+
+          echo "Found TODOs:"
+          echo "$todos"
+          echo ""
+
+          echo "$todos" | while IFS=: read -r file content; do
+            echo "Checking: $file$content"
+            if [[ $content =~ (#([0-9]+)) ]]; then
+                issue_number=${BASH_REMATCH[1]}
+                echo "Linked to issue #$issue_number"
+                # Check if issue exists and is open
+                if ! gh issue view $issue_number --json state --jq '.state' | grep -q "OPEN"; then
+                    echo "Issue #$issue_number does not exist or is not open"
+                    exit 1
+                fi
+            else
+                echo "TODO without issue link in $file: $content"
+                exit 1
+            fi
+          done
+
+          echo "All TODOs are properly linked to open issues"
