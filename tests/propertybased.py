@@ -21,7 +21,7 @@ def create_property_based_test(f, regressions=[], time_test=10):
         i += 1
 
 
-# ### Example
+### Example
 # import math
 # def get_dist(a, b):
 #     return math.sqrt(((a[0] - b[0]) ** 2) + ((a[1] - b[1]) ** 2) + ((a[2] - b[2]) ** 2))
