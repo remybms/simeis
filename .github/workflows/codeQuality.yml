@@ -1,0 +1,26 @@
+name: Code Quality
+
+on:
+    pull_request
+
+jobs:
+    python-check:
+        runs-on: ubuntu-latest
+    
+        steps:
+            - uses: actions/checkout@v4
+
+            - run: |
+                pip install ruff
+                ruff check tests/propertybased.py
+    
+    rust-check:
+        runs-on: ubuntu-latest
+    
+        steps:
+            - uses: actions/checkout@v4
+
+            - run: |
+                cargo check
+                cargo fmt --check
+                cargo clippy

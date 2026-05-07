@@ -20,30 +20,31 @@ def create_property_based_test(f, regressions=[], time_test=10):
             sys.exit(1)
         i += 1
 
-### Example
-import math
-def get_dist(a, b):
-    return math.sqrt(((a[0] - b[0]) ** 2) + ((a[1] - b[1]) ** 2) + ((a[2] - b[2]) ** 2))
 
-def addition():
-    x = random.randrange(0, 10000)
-    y = random.randrange(0, 10000)
-    z = random.randrange(0, 10000)
+# ### Example
+# import math
+# def get_dist(a, b):
+#     return math.sqrt(((a[0] - b[0]) ** 2) + ((a[1] - b[1]) ** 2) + ((a[2] - b[2]) ** 2))
 
-    # Exercice:    Tester les additions
+# def addition():
+#     x = random.randrange(0, 10000)
+#     y = random.randrange(0, 10000)
+#     z = random.randrange(0, 10000)
 
-def distance():
-    x1 = random.randrange(-100, 100)
-    y1 = random.randrange(-100, 100)
-    z1 = random.randrange(-100, 100)
-    a = (x1, y1, z1)
+#     # Exercice:    Tester les additions
 
-    x2 = random.randrange(-100, 100)
-    y2 = random.randrange(-100, 100)
-    z2 = random.randrange(-100, 100)
-    b = (x2, y2, z2)
+# def distance():
+#     x1 = random.randrange(-100, 100)
+#     y1 = random.randrange(-100, 100)
+#     z1 = random.randrange(-100, 100)
+#     a = (x1, y1, z1)
 
-    # Exercice:     Tester la distance entre le point A et le point B
+#     x2 = random.randrange(-100, 100)
+#     y2 = random.randrange(-100, 100)
+#     z2 = random.randrange(-100, 100)
+#     b = (x2, y2, z2)
 
-create_property_based_test(addition, time_test=3)
-create_property_based_test(distance, regressions=[4480881574280375424], time_test=10)
+#     # Exercice:     Tester la distance entre le point A et le point B
+
+# create_property_based_test(addition, time_test=3)
+# create_property_based_test(distance, regressions=[4480881574280375424], time_test=10)
