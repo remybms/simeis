@@ -1,0 +1,17 @@
+name: Code Quality
+
+on:
+    pull_request
+
+jobs:
+    pull-requests-check:
+        if: (github.head_ref != 'main' || !startsWith(github.head_ref, 'bug/')) && startsWith(github.base_ref, 'release/')
+        runs-on: ubuntu-latest
+        continue-on-error: true
+        steps:
+            - name: Fail if source is not allowed on release/*
+              run: |
+                echo "Source isn't main or bug/"
+                exit 1
+
+    
