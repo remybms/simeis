@@ -1,0 +1,13 @@
+name: Advanced Analysis
+on:
+    push:
+        branches:
+            'release/**'
+
+jobs:
+    heavy-analysis:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4 
+            - name: Run unit tests with heavy-testing feature
+              run: cargo test --features heavy-testing --workspace
