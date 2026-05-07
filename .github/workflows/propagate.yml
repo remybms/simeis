@@ -1,0 +1,30 @@
+name: Propagate
+
+on:
+    pull_request:
+        types: closed
+
+jobs:
+    propagate:
+        if: github.event.pull_request.merged == true && startsWith(github.head_ref, 'bug/')
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Extract release branch
+              id: extract
+              run: |
+                LABEL=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH" | grep '^propagate:release/' | head -n1)
+                BRANCH=${LABEL#propagate:}
+                echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+            - name: Create Pull Request
+              if: steps.extract.outputs.branch != ''
+              uses: peter-evans/create-pull-request@v8
+              with:
+                base: ${{ steps.extract.outputs.branch }}
+                branch: propagate/${{ github.head_ref }}
+                title: "Propagate ${{ github.head_ref }} to ${{ steps.extract.outputs.branch }}"
+                body: |
+                 Automatic propagation from `${{ github.head_ref }}` to `${{ steps.extract.outputs.branch }}`.
