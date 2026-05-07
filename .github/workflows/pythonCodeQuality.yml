@@ -1,4 +1,4 @@
-name: Rust Code Quality
+name: Python Code Quality
 
 on:
     push
@@ -11,5 +11,5 @@ jobs:
             - uses: actions/checkout@v4
 
             - run: |
-                pip install black
-                black .
+                pip install ruff
+                ruff check .
