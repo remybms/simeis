@@ -1,0 +1,27 @@
+name: Tests
+
+on:
+    pull_request:
+        types: [opened, edited, reopened]
+
+
+jobs:
+  test:
+    if: startsWith(github.base_ref, 'release/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Launch the tests
+        run: |
+            cargo build
+            pip install pytest
+            cargo run &
+            sleep 5
+            python -m pytest
+
+
+
+
+
