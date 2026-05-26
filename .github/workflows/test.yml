@@ -16,6 +16,7 @@ jobs:
       - name: Launch the tests
         run: |
             cargo build
+            pip install pytest
             cargo run &
             sleep 5
             python -m pytest
