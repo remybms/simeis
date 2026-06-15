@@ -1,0 +1,40 @@
+name: Coverage
+
+on:
+    pull_request:
+        types: [opened, edited, reopened]
+
+
+jobs:
+  test:
+    if: startsWith(github.base_ref, 'release/')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check coverage
+        id: coverage
+        run: |
+          cargo install cargo-tarpaulin
+          cargo tarpaulin --out Stdout > coverage.txt
+          COVERAGE=$(grep -oP '\d+\.\d+(?=% coverage)' coverage.txt)
+
+          echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+
+      - name: Add label if coverage < 50%
+        if: ${{ fromJSON(steps.coverage.outputs.coverage) < 50 }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ["not enough tests"]
+            });
+
+
+
+
+

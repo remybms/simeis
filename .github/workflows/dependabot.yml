@@ -12,6 +12,19 @@ jobs:
         - uses: actions/checkout@v4
 
         - name: Update depedencies
+          env:
+            GH_TOKEN: ${{ github.token }}
           run: |
             cargo update
-            gh pr create -t "Update depedencies" -b "Automatic Pull Request" -l "bot/update" || gh pr edit main -l "bot/update"
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            git checkout -b bot/update-dependencies
+
+            git add .
+            git commit -m "Update dependencies" || exit 0
+
+            git push origin bot/update-dependencies
+
+            gh pr create --title "Update dependencies" --body "Automatic Pull Request" --label "bot/update" --base main --head bot/update-dependencies || gh pr edit main --add-label "bot/update"
