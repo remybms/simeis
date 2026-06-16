@@ -26,5 +26,8 @@ jobs:
             git commit -m "Update dependencies" || exit 0
 
             git push origin bot/update-dependencies
-
-            gh pr create --title "Update dependencies" --body "Automatic Pull Request" --label "bot/update" --base main --head bot/update-dependencies || gh pr edit main --add-label "bot/update"
+        
+        - name: Open Pull Request
+          env:
+            GH_TOKEN: ${{ github.token }}
+          run: gh pr create --title "Update dependencies" --body "Automatic Pull Request" --label "bot/update" --base main --head bot/update-dependencies || gh pr edit main --add-label "bot/update"

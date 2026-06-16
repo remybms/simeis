@@ -13,10 +13,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache cargo binaries
+        id: cache-tarpaulin
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: tarpaulin-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Tarpaulin
+        if: steps.cache-tarpaulin.outputs.cache-hit != 'true'
+        run: cargo install cargo-tarpaulin
+
       - name: Check coverage
         id: coverage
         run: |
-          cargo install cargo-tarpaulin
           cargo tarpaulin --out Stdout > coverage.txt
           COVERAGE=$(grep -oP '\d+\.\d+(?=% coverage)' coverage.txt)
 

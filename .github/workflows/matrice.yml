@@ -1,0 +1,23 @@
+name: Matrice de Build
+
+on:
+    pull_request:
+        types: [opened, edited, reopened]
+
+jobs:
+    build:
+      if: (github.base_ref == 'main') && startsWith(github.head_ref, 'feature/')
+      strategy:
+        matrix:
+            version: [1.75.0, 1.80.0, 1.85.0, 1.88.0]
+            os: [ubuntu-latest, windows-latest, macos-latest]
+      runs-on: ${{ matrix.os }}
+      steps:
+        - uses: actions/checkout@v4
+
+        - name: Set up Rust
+          uses: actions-rs/toolchain@v1
+          with:
+            toolchain: ${{ matrix.version }}
+
+        - run: make build
