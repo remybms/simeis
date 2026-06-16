@@ -13,6 +13,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache typst binaries
+        id: cache-typst
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/typst/packages
+          key: typst-packages-${{ runner.os }}
+
+      - name: Install typst
+        if: steps.cache-typst.outputs.cache-hit != 'true'
+        run: make typst
+
       - name: Run the makefile
         run: make build
 

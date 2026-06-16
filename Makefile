@@ -4,9 +4,11 @@ launch: test
 	strip target/release/simeis-server.exe
 	cargo run --release --verbose
 
+typst:
+	cargo install typst-cli
+
 build:
 	cargo build --release
-	cargo install typst-cli
 	typst compile doc/manual.typ
 
 test: build_devmode
