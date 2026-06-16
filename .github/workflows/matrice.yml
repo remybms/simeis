@@ -14,6 +14,10 @@ jobs:
       runs-on: ${{ matrix.os }}
       steps:
         - uses: actions/checkout@v4
-          with: ${{ matrix.version }}
+
+        - name: Set up Rust
+          uses: actions-rs/toolchain@v1
+          with:
+            toolchain: ${{ matrix.version }}
 
         - run: make build
