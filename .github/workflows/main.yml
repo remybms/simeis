@@ -22,6 +22,9 @@ jobs:
 
       - name: Install typst
         if: steps.cache-typst.outputs.cache-hit != 'true'
+        run: make typst-install
+      
+      - name: Compile typst
         run: make typst
 
       - name: Run the makefile
