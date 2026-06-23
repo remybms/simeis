@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -e
+
+# Pré-suppression : arrêter le service
+if command -v systemctl >/dev/null 2>&1; then
+  if systemctl is-active --quiet simeis-server; then
+    systemctl stop simeis-server || true
+  fi
+  systemctl disable simeis-server || true
+fi
+
+exit 0

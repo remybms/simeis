@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -e
+
+# Post-suppression : recharger systemd et supprimer optionnellement l'utilisateur en cas de suppression complète
+if [ "$1" = "purge" ]; then
+  if id -u simeis >/dev/null 2>&1; then
+    userdel simeis || true
+  fi
+fi
+
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl daemon-reload || true
+fi
+
+exit 0
