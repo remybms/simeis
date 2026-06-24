@@ -128,7 +128,7 @@ jobs:
 
       - name: Health check
         run: |
-          curl --fail http://localhost:3636
+          curl --fail http://localhost:8080
 
       - name: Stop container
         if: always()
