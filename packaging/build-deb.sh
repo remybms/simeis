@@ -32,7 +32,7 @@ install -m 0755 "$BINARY" "$PKGDIR/usr/bin/simeis-server"
 
 echo "Copie des fichiers de contrôle et des scripts de maintenance..."
 cp debian/DEBIAN/* $PKGDIR/DEBIAN/ || true
-echo $PKGDIR/DEBIAN/control
+cat $PKGDIR/DEBIAN/control
 # copier la page man si présente
 if [ -d debian/usr/share/man ]; then
   cp -a debian/usr/share/man/* $PKGDIR/usr/share/man/ || true

@@ -121,7 +121,8 @@ jobs:
 
       - name: Test
         run: |
-          docker run --rm litchipi/simeis-remy-marine-maxence:latest
+          docker run --rm litchipi/simeis-remy-marine-maxence:latest || exit 1
+
 
 
       - name: Build and push
