@@ -31,18 +31,13 @@ echo "Copie du binaire..."
 install -m 0755 "$BINARY" "$PKGDIR/usr/bin/simeis-server"
 
 echo "Copie des fichiers de contrôle et des scripts de maintenance..."
-cp -a debian/DEBIAN/* "$PKGDIR/DEBIAN/" || true
+cp -a debian/DEBIAN/* $PKGDIR/DEBIAN/ || true
 # copier la page man si présente
 if [ -d debian/usr/share/man ]; then
-  cp -a debian/usr/share/man/* "$PKGDIR/usr/share/man/" || true
+  cp -a debian/usr/share/man/* $PKGDIR/usr/share/man/ || true
 fi
 # installer l'unité systemd dans /etc/systemd/system
-cp -a debian/lib/systemd/system/simeis-server.service "$PKGDIR/etc/systemd/system/" || true
-
-# Injecter la version dans le fichier de contrôle
-if [ -f "$PKGDIR/DEBIAN/control" ]; then
-  sed -i "s/^Version: .*$/Version: $VERSION/" "$PKGDIR/DEBIAN/control"
-fi
+cp -a debian/lib/systemd/system/simeis-server.service $PKGDIR/etc/systemd/system/ || true
 
 echo "Configuration des permissions pour les fichiers DEBIAN"
 chmod 0755 "$PKGDIR/DEBIAN/preinst" || true
