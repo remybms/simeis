@@ -115,6 +115,7 @@ jobs:
       - name: Build and export to Docker
         uses: docker/build-push-action@v7
         with:
+          file: .github/dockerfile
           load: true
           tags: litchipi/simeis-remy-marine-maxence:latest
 
