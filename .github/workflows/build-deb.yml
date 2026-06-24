@@ -29,6 +29,12 @@ jobs:
           chmod +x packaging/build-deb.sh
           ./packaging/build-deb.sh "${VERSION}"
 
+      - name: Upload .deb to GitHub Actions artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: simeis-server-${{ github.event.release.tag_name }}
+          path: simeis-server_${{ github.event.release.tag_name }}_amd64.deb
+
       - name: Upload .deb to release
         uses: softprops/action-gh-release@v1
         with:
