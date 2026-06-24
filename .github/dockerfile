@@ -4,7 +4,7 @@ WORKDIR /build
 
 COPY . .
 
-RUN cargo build --release
+RUN cargo build --release --no-default-features --features tokio
 
 EXPOSE 3636
 
