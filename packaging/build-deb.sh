@@ -5,7 +5,7 @@ set -euo pipefail
 VERSION="$1"
 
 ROOT_DIR=$(dirname "$0")/..
-ROOT_DIR=$(cd "$ROOT_DIR" && pwd)
+ROOT_DIR=$(realpath $ROOT_DIR)
 
 echo "Construction de simeis-server version $VERSION"
 
@@ -31,13 +31,13 @@ echo "Copie du binaire..."
 install -m 0755 "$BINARY" "$PKGDIR/usr/bin/simeis-server"
 
 echo "Copie des fichiers de contrôle et des scripts de maintenance..."
-cp debian/DEBIAN/* $PKGDIR/DEBIAN/ || true
+cp debian/DEBIAN/* $PKGDIR/DEBIAN/
 # copier la page man si présente
 if [ -d debian/usr/share/man ]; then
-  cp -a debian/usr/share/man/* $PKGDIR/usr/share/man/ || true
+  cp -a debian/usr/share/man/* $PKGDIR/usr/share/man/
 fi
 # installer l'unité systemd dans /etc/systemd/system
-cp -a debian/lib/systemd/system/simeis-server.service $PKGDIR/etc/systemd/system/ || true
+cp -a debian/lib/systemd/system/simeis-server.service $PKGDIR/etc/systemd/system/
 
 echo "Configuration des permissions pour les fichiers DEBIAN"
 chmod 0755 "$PKGDIR/DEBIAN/preinst" || true
