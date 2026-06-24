@@ -1,0 +1,8 @@
+ Package: simeis-server 
+ Version: 1.1-1 
+ Section: base 
+ Priority: optional 
+ Depends: 
+ Architecture: all 
+ Maintainer: Maxence Marine Rémy <mmr@maintainer.com> 
+ Description: Simeis Server A game working with an API.

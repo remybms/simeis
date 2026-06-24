@@ -1,0 +1,38 @@
+name: Build Debian package
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install dpkg-deb
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev
+
+      - name: Build and package .deb
+        env:
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          chmod +x packaging/build-deb.sh
+          ./packaging/build-deb.sh "${VERSION}"
+
+      - name: Upload .deb to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            simeis-server_${{ github.event.release.tag_name }}_amd64.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
