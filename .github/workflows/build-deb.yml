@@ -1,14 +1,18 @@
 name: Build Debian package
 
 on:
-  release:
-    types: [published]
+  pull_request:
+    types:
+      - closed
+    branches: 'release/**'
 
 permissions:
   contents: write
 
 jobs:
   build-deb:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.base.ref, 'release/')
+
     runs-on: ubuntu-latest
 
     steps:
