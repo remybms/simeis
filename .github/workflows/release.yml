@@ -116,15 +116,15 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           load: true
-          tags: simeis:simeis
+          tags: litchipi/simeis:latest
 
       - name: Test
         run: |
-          docker run --rm simeis:simeis
+          docker run --rm litchipi/simeis:latest
 
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: simeis:simeis
+          tags: litchipi/simeis:latest
