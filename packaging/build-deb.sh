@@ -45,6 +45,8 @@ chmod 0755 "$PKGDIR/DEBIAN/postinst" || true
 chmod 0755 "$PKGDIR/DEBIAN/prerm" || true
 chmod 0755 "$PKGDIR/DEBIAN/postrm" || true
 
+cat $PKGDIR/DEBIAN/control
+
 tar -czvf $PKGDIR/control.tar.gz $PKGDIR/DEBIAN
 
 tar -czvf $PKGDIR/data.tar.gz $BINARY
