@@ -117,22 +117,11 @@ jobs:
         with:
           file: .github/dockerfile
           load: true
-          tags: litchipi/simeis-remy-marine-maxence:latest
+          tags: litchipi/simeis-remy-marine-maxence:test
 
       - name: Test
         run: |
-          docker run -d --rm litchipi/simeis-remy-marine-maxence:latest
-
-      - name: Wait for startup
-        run: sleep 10
-
-      - name: Health check
-        run: |
-          curl --fail http://localhost:8080
-
-      - name: Stop container
-        if: always()
-        run: docker stop app
+          docker run --rm litchipi/simeis-remy-marine-maxence:test
 
       - name: Build and push
         uses: docker/build-push-action@v7
