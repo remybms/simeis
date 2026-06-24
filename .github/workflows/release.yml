@@ -95,6 +95,8 @@ jobs:
               --notes-file CHANGELOG.md
           fi
   docker: 
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.base.ref, 'release/')
+
     runs-on: ubuntu-latest
 
     steps:
@@ -114,9 +116,15 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           load: true
+          tags: simeis:simeis
+
+      - name: Test
+        run: |
+          docker run --rm simeis:simeis
 
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
           platforms: linux/amd64,linux/arm64
           push: true
+          tags: simeis:simeis
