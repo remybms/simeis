@@ -121,7 +121,9 @@ jobs:
 
       - name: Test
         run: |
-          docker run --rm litchipi/simeis-remy-marine-maxence:test
+          docker run -d --rm litchipi/simeis-remy-marine-maxence:test
+          sleep 10
+          curl --fail http://localhost:8080
 
       - name: Build and push
         uses: docker/build-push-action@v7
