@@ -27,57 +27,62 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Generate changelog
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           {
             echo "# Changelog"
             echo
 
-            echo "## Features"
+            PREV_TAG=$(git tag --sort=-version:refname | head -n 1)
+            if [ -z "$PREV_TAG" ]; then
+              PREV_TAG=$(git rev-list --all | tail -1)
+            fi
 
-            gh pr list \
-              --state merged \
-              --base "$GITHUB_BASE_REF" \
-              --limit 100 \
-              --json title,url,headRefName \
-              --jq '
-                .[]
-                | select(.headRefName | startswith("feature/"))
-                | "- [\(.title)](\(.url))"
-              '
-
-            echo
-            echo "## Bugfix"
-
-            gh pr list \
-              --state merged \
-              --base "$GITHUB_BASE_REF" \
-              --limit 100 \
-              --json title,url,headRefName \
-              --jq '
-                .[]
-                | select(.headRefName | startswith("bug/"))
-                | "- [\(.title)](\(.url))"
-              '
-
-            echo
-            echo "## Autre"
-
-            gh pr list \
-              --state merged \
-              --base "$GITHUB_BASE_REF" \
-              --limit 100 \
-              --json title,url,headRefName \
-              --jq '
-                .[]
-                | select(
-                    (.headRefName | startswith("feature/") | not)
-                    and
-                    (.headRefName | startswith("bug/") | not)
-                  )
-                | "- [\(.title)](\(.url))"
-              '
+            # Arrays pour stocker les PR catégorisées
+            declare -a FEATURES
+            declare -a BUGFIXES
+            declare -a OTHERS
+            
+            # Récupérer les commits mergés entre le dernier tag et HEAD
+            while IFS= read -r merge_msg; do
+              # Extraire le numéro de PR et la branche source
+              if [[ $merge_msg =~ Merge\ pull\ request\ \#([0-9]+)\ from\ ([^/]+)/(.+) ]]; then
+                PR_NUM="${BASH_REMATCH[1]}"
+                BRANCH="${BASH_REMATCH[3]}"
+                
+                # Récupérer les détails de la PR avec gh
+                PR_TITLE=$(gh pr view "$PR_NUM" --json title --jq '.title' 2>/dev/null)
+                PR_URL=$(gh pr view "$PR_NUM" --json url --jq '.url' 2>/dev/null)
+                
+                if [ -n "$PR_TITLE" ] && [ -n "$PR_URL" ]; then
+                  ENTRY="- [$PR_TITLE]($PR_URL) (#$PR_NUM)"
+                  
+                  if [[ "$BRANCH" == feature/* ]]; then
+                    FEATURES+=("$ENTRY")
+                  elif [[ "$BRANCH" == bug/* ]]; then
+                    BUGFIXES+=("$ENTRY")
+                  else
+                    OTHERS+=("$ENTRY")
+                  fi
+                fi
+              fi
+            done < <(git log $PREV_TAG..HEAD --oneline --grep="Merge pull request" --format="%s")
+            
+            if [ ${#FEATURES[@]} -gt 0 ]; then
+              echo "## Features"
+              printf '%s\n' "${FEATURES[@]}"
+              echo
+            fi
+            
+            if [ ${#BUGFIXES[@]} -gt 0 ]; then
+              echo "## Bugfix"
+              printf '%s\n' "${BUGFIXES[@]}"
+              echo
+            fi
+            
+            if [ ${#OTHERS[@]} -gt 0 ]; then
+              echo "## Autre"
+              printf '%s\n' "${OTHERS[@]}"
+            fi
 
           } > CHANGELOG.md
 
