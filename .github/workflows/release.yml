@@ -121,7 +121,7 @@ jobs:
 
       - name: Test
         run: |
-          docker run --rm litchipi/simeis-remy-marine-maxence:latest
+          docker run -d --rm litchipi/simeis-remy-marine-maxence:latest
 
       - name: Wait for startup
         run: sleep 10
