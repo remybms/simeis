@@ -32,7 +32,6 @@ install -m 0755 "$BINARY" "$PKGDIR/usr/bin/simeis-server"
 
 echo "Copie des fichiers de contrôle et des scripts de maintenance..."
 cp debian/DEBIAN/* $PKGDIR/DEBIAN/ || true
-cat $PKGDIR/DEBIAN/control
 # copier la page man si présente
 if [ -d debian/usr/share/man ]; then
   cp -a debian/usr/share/man/* $PKGDIR/usr/share/man/ || true
@@ -45,6 +44,12 @@ chmod 0755 "$PKGDIR/DEBIAN/preinst" || true
 chmod 0755 "$PKGDIR/DEBIAN/postinst" || true
 chmod 0755 "$PKGDIR/DEBIAN/prerm" || true
 chmod 0755 "$PKGDIR/DEBIAN/postrm" || true
+
+tar -czvf $PKGDIR/control.tar.gz $PKGDIR/DEBIAN
+
+tar -czvf $PKGDIR/data.tar.gz $BINARY
+
+echo "2.0" > $PKGDIR/debian-binary
 
 OUT=./simeis-server_${VERSION}_amd64.deb
 echo "Construction du .deb -> $OUT"
