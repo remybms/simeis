@@ -123,7 +123,7 @@ jobs:
         run: |
           docker run -d -p 8080:8080 --rm litchipi/simeis-remy-marine-maxence:test
           sleep 10
-          curl --fail http://localhost:8080
+          curl -I -X GET --fail http://localhost:8080
 
       - name: Build and push
         uses: docker/build-push-action@v7
