@@ -121,7 +121,7 @@ jobs:
 
       - name: Test
         run: |
-          docker run -d -p 127.0.0.1:8080:8080 --rm litchipi/simeis-remy-marine-maxence:test
+          docker run -d -p 8080:8080 --rm litchipi/simeis-remy-marine-maxence:test
           sleep 10
           curl --fail http://localhost:8080
 
