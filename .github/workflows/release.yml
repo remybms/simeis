@@ -120,6 +120,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
+          file: .github/dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: litchipi/simeis-remy-marine-maxence:latest
