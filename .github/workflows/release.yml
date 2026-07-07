@@ -117,19 +117,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build and export to Docker
-        uses: docker/build-push-action@v7
-        with:
-          file: .github/dockerfile
-          load: true
-          tags: litchipi/simeis-remy-marine-maxence:latest
-
-      - name: Test
-        run: |
-          docker run --rm litchipi/simeis-remy-marine-maxence:latest || exit 1
-
-
-
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
