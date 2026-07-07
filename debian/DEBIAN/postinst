@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -e
+
+# Post-installation : créer l'utilisateur, les répertoires, définir les permissions, activer le service
+
+if ! id -u simeis >/dev/null 2>&1; then
+  useradd --system --no-create-home --home /var/lib/simeis --shell /usr/sbin/nologin simeis || true
+fi
+
+mkdir -p /var/lib/simeis
+chown -R simeis:simeis /var/lib/simeis || true
+
+# mettre à jour la base de données de la page man
+if command -v mandb >/dev/null 2>&1; then
+  mandb || true
+fi
+
+if command -v systemctl >/dev/null 2>&1; then
+  # s'assurer que l'unité est dans /etc/systemd/system et recharger
+  systemctl daemon-reload || true
+  systemctl enable --now simeis-server || true
+fi
+
+exit 0

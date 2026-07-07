@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -e
+
+# Pré-installation : arrêter le service s'il est en cours d'exécution
+if command -v systemctl >/dev/null 2>&1; then
+  if systemctl is-active --quiet simeis-server; then
+    echo "Arrêt du service simeis-server existant..."
+    systemctl stop simeis-server || true
+  fi
+fi
+
+exit 0

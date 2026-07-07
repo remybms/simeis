@@ -3,7 +3,7 @@ import json
 from sdk.python import SimeisSDK
 
 def test_app():
-    sdk = SimeisSDK("UtilisateurDeTest", "localhost", "8080")
+    sdk = SimeisSDK("UtilisateurDeTest", "localhost", "3636")
     status = sdk.get_player_status()
     money = status["money"]
     sta = status["stations"][0]

@@ -1,4 +1,4 @@
-PORT=8080
+PORT=3636
 URL=f"http://0.0.0.0:{PORT}"
 
 import sys

@@ -11,7 +11,7 @@ pub struct Game {
 impl Game {
     pub fn new(username: String) -> Game {
         Game {
-            sdk: sdk::SimeisSDK::new(username, "0.0.0.0", 8080),
+            sdk: sdk::SimeisSDK::new(username, "0.0.0.0", 3636),
         }
     }
 

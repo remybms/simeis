@@ -1,0 +1,48 @@
+name: Build Debian package
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches: 'release/**'
+
+permissions:
+  contents: write
+
+jobs:
+  build-deb:
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.base.ref, 'release/')
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install dpkg-deb
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev
+
+      - name: Build and package .deb
+        env:
+          VERSION: ${{ github.event.pull_request.base.ref }}
+        run: |
+          VERSION=${VERSION#release/}
+          chmod +x packaging/build-deb.sh
+          ./packaging/build-deb.sh ${VERSION}
+
+      - name: Upload .deb to GitHub Actions artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: simeis-server-${{ github.event.pull_request.base.ref }}
+          path: simeis-server_*.deb
+
+      - name: Upload .deb to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: simeis-server_${{ github.event.pull_request.base.ref }}_amd64.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
